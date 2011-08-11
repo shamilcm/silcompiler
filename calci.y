@@ -11,16 +11,16 @@ pgm:
 		|		
 		expr1 '\n' 	{printf("%d\n", $1); return(0);}
 		;
-expr1:		expr1 '/' expr2 {$$=$1/$3;}
+expr1:		expr1 '+' expr2 {$$=$1+$3;}
 		|
-		expr1 '*' expr2 {$$=$1*$3;}
+		expr1 '-' expr2 {$$=$1-$3;}
 		|
 		expr2
 		;
 
-expr2:		expr2 '+' NUM	{$$=$1+$3;}	
+expr2:		expr2 '*' NUM	{$$=$1*$3;}	
 		|
-		expr2 '-' NUM	{$$=$1-$3;}
+		expr2 '/' NUM	{$$=$1/$3;}
 		|
 		NUM		{$$=$1;}
 		;		
