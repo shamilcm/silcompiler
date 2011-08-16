@@ -1,18 +1,20 @@
 %{
 #include <stdio.h>
 #include "y.tab.h"
-extern int yylval;
+
+extern YYSTYPE yylval;
 %}
 
-digit [0-9]
+digit [0-9]+
+number {digit}+(.{digit}+)?
 
 %%
-{digit}+ 	{   
-			yylval=atoi(yytext); 
+{digit} 	{   
+			yylval=(atoi(yytext)); 
 			return NUM; 
-			/*printf("\ndigit %d", atoi(yytext))*/;
+			/*printf("\ndigit %d", atoi(yytext));*/
 		}
-[-+/*\n] 		{  return *yytext;
+[-+/*()\n] 		{  return *yytext;
       		    /* printf("\nsign%s", yytext );*/	
 		}
 
@@ -20,5 +22,6 @@ digit [0-9]
 		  return(0);		  
 		 }
 %%
+
 
 
