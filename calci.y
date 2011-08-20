@@ -13,7 +13,9 @@
 %token <d> NUM
 %left '-' '+'
 %left '*' '/'
+%right '^'
 %left NEG     
+
 
 %type <d> expr
   
@@ -39,6 +41,8 @@ expr:	        expr '+' expr {$$=$1+$3;}
 		'-' expr  %prec NEG { $$ = -$2;        }
                 |  
                  '(' expr ')'        { $$ = $2;   }
+		|
+		expr '^' expr { $$ = pow($1,$3);}
 		|
 		NUM		{$$=$1;}
 		;	

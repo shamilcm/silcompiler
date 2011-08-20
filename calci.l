@@ -17,7 +17,7 @@ number {digit}+(\.{digit}+)?(E[+-]?{digit}+)?
 			return NUM; 
 			
 		}
-[-+/*()\n] 		{  return *yytext;
+[-+/*()^\n] 		{  return *yytext;
       		    /* printf("\nsign%s", yytext );*/	
 		}
 
