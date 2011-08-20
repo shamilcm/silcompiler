@@ -5,24 +5,24 @@
 
 
 struct node{
-  	int val;
+  	double val;
 	char op;
 	int flag;
 	struct node *l, *r;
 };
 
 struct node* makeTree(char op, struct node* left, struct node* right);
-struct node* makeLeaf(int val);
+struct node* makeLeaf(double val);
 void par(struct node* t);
 
 %}
 
 %union{	 	
-	int i;
+	double d;
 	struct node *n;
 }
 
-%token <i> NUM 
+%token <d> NUM 
 %left '-' '+'
 %left '*' '/'  
 
@@ -59,7 +59,7 @@ expr:		expr '+' expr 	{
 				 $$ = makeTree('/',$1,$3);
 				}
 		|
-		'('expr')'			{$$=$2;}
+		'('expr')'	{$$=$2;}
 		|		
 		NUM		{
 				 $$=makeLeaf($1);
@@ -85,7 +85,7 @@ struct node* makeTree(char op, struct node* left, struct node* right)
 	return res;
 }	
 
-struct node* makeLeaf(int val)
+struct node* makeLeaf(double val)
 {
 	struct node* res = malloc(sizeof(struct node));
 	res->val = val;
@@ -105,7 +105,7 @@ void par(struct node* t)
 	if(t->flag==0)
 	printf("%c",t->op);
 	else
-	printf("%d",t->val);
+	printf("%.10g",t->val);
 	par(t->r);	 
 	if(t->flag==0) printf(")");
   }

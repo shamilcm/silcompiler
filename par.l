@@ -7,14 +7,15 @@ extern YYSTYPE yylval;
 
 %}
 
-
+digit [0-9]+
+number {digit}+(\.{digit}+)?(E[+-]?{digit}+)?
 
 %%
-[0-9]+		{   
+{number}		{   
 			
-			yylval.i = atof(yytext);
+			yylval.d = atof(yytext);
 			return NUM; 
-			/*printf("\ndigit %d", atoi(yytext));*/
+			/*printf("\ndigit %d", atof(yytext));*/
 		}
 		
 [-+/*\n] 		{ 
