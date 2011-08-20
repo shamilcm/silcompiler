@@ -26,7 +26,7 @@ void par(struct node* t);
 %left '-' '+'
 %left '*' '/'  
 
-%type <n> expr 
+%type <n>  expr 
 
 
   
@@ -38,30 +38,30 @@ input:
 
 pgm:		'\n'			
 		|
-		expr '\n' 	{//printf("%d\n>>", $1);
+		expr '\n' 	{
 				 par($1);
 				}
 		;
 		
-expr:		expr '+' expr 	{//$$ = $1+$3;
+expr:		expr '+' expr 	{
 				 $$ = makeTree('+',$1,$3);
 				}
 		|
-		expr '-' expr 	{// $$=$1-$3;
+		expr '-' expr 	{
 				 $$ = makeTree('-',$1,$3);
 				}
 		|
-		expr '*' expr	{//$$=$1*$3;
+		expr '*' expr	{
 				 $$ = makeTree('*',$1,$3);
 				}	
 		|
-		expr '/' expr	{//$$=$1/$3;
+		expr '/' expr	{
 				 $$ = makeTree('/',$1,$3);
 				}
 		|
 		'('expr')'			{$$=$2;}
 		|		
-		NUM		{//$$=$1;
+		NUM		{
 				 $$=makeLeaf($1);
 				}
 		;	
