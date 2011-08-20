@@ -18,7 +18,7 @@ number {digit}+(\.{digit}+)?(E[+-]?{digit}+)?
 			/*printf("\ndigit %d", atof(yytext));*/
 		}
 		
-[-+/*\n] 		{ 
+[-+/*()^\n] 		{ 
 			
 				return *yytext;
       			    /* printf("\nsign%s", yytext );*/	

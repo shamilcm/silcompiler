@@ -13,7 +13,7 @@ struct node{
 
 struct node* makeTree(char op, struct node* left, struct node* right);
 struct node* makeLeaf(double val);
-void par(struct node* t);
+int par(struct node* t);
 
 %}
 
@@ -24,8 +24,9 @@ void par(struct node* t);
 
 %token <d> NUM 
 %left '-' '+'
-%left '*' '/'  
-
+%left '*' '/'
+%right '^'
+%left NEG   
 %type <n>  expr 
 
 
@@ -39,7 +40,7 @@ input:
 pgm:		'\n'			
 		|
 		expr '\n' 	{
-				 par($1);
+				 par($1); printf("\n");main();
 				}
 		;
 		
@@ -60,6 +61,10 @@ expr:		expr '+' expr 	{
 				}
 		|
 		'('expr')'	{$$=$2;}
+		|
+		'-' expr  %prec NEG {$$=makeTree('-',NULL, $2); }
+		|
+		expr '^' expr { $$ =  makeTree('^',$1,$3);}		
 		|		
 		NUM		{
 				 $$=makeLeaf($1);
@@ -71,7 +76,7 @@ expr:		expr '+' expr 	{
 
 int main(void)
   { 
-	printf(">>");
+	printf("\n >>> ");
 	return yyparse();
 	}
 
@@ -96,7 +101,7 @@ struct node* makeLeaf(double val)
 
 }
 
-void par(struct node* t)
+int par(struct node* t)
 { 
  if(t!=NULL)
   
@@ -109,6 +114,7 @@ void par(struct node* t)
 	par(t->r);	 
 	if(t->flag==0) printf(")");
   }
+  return 1;
 
 }
 
