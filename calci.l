@@ -3,16 +3,19 @@
 #include "y.tab.h"
 
 extern YYSTYPE yylval;
+
+
 %}
 
 digit [0-9]+
-number {digit}+(.{digit}+)?
+number {digit}+(\.{digit}+)?(E[+-]?{digit}+)?
 
 %%
-{digit} 	{   
-			yylval=(atoi(yytext)); 
+{number} 	{   
+			yylval.d=(atof(yytext)); 
+			/*printf("\ndigit %.10g", yylval.d);*/
 			return NUM; 
-			/*printf("\ndigit %d", atoi(yytext));*/
+			
 		}
 [-+/*()\n] 		{  return *yytext;
       		    /* printf("\nsign%s", yytext );*/	

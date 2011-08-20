@@ -3,14 +3,19 @@
 #include<string.h>
 #include<math.h>
 
+    
+                                                           
 %}
 
-%token NUM
+%union{
+	double d;
+}
+%token <d> NUM
 %left '-' '+'
 %left '*' '/'
 %left NEG     
 
-
+%type <d> expr
   
  
 %%
@@ -20,10 +25,10 @@ input:
 
 pgm:	'\n'			
 		|
-		expr '\n' 	{printf("%d\n>>", $1); }
+		expr '\n' 	{printf("%.10g\n>>", $1); }
 		;
 		
-expr:	expr '+' expr {$$=$1+$3;}
+expr:	        expr '+' expr {$$=$1+$3;}
 		|
 		expr '-' expr {$$=$1-$3;}
 		|
@@ -32,8 +37,8 @@ expr:	expr '+' expr {$$=$1+$3;}
 		expr '/' expr	{$$=$1/$3;}
 		|
 		'-' expr  %prec NEG { $$ = -$2;        }
-        |  
-        '(' expr ')'        { $$ = $2;   }
+                |  
+                 '(' expr ')'        { $$ = $2;   }
 		|
 		NUM		{$$=$1;}
 		;	
@@ -43,7 +48,7 @@ expr:	expr '+' expr {$$=$1+$3;}
 
 int main(void)
   { 
-	printf(">>");
+	printf(">>> ");
 	return yyparse();
 	}
 	
@@ -58,26 +63,3 @@ int yyerror (char *msg) {
 
 
 
-
-
-
-//Shifterror
-/*
-pgm:				
-		|		
-		expr1 '\n' 	{printf("%d\n", $1); return(0);}
-		;
-expr1:		expr1 '+' expr1 {$$=$1+$3;}
-		|
-		expr1 '-' expr1 {$$=$1-$3;}
-		|
-		expr1 '/' expr1 {$$=$1/$3;}
-		|
-		expr1 '*' expr1 {$$=$1*$3;}
-		|
-		'('expr1')' {$$=$2;}
-		|
-		NUM	{$$=$1;}
-		;
-
-*/
