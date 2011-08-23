@@ -5,29 +5,30 @@
 
 
 struct node{
-  	double val;
+  	int val;
 	char op;
 	int flag;
 	struct node *l, *r;
 };
 
-struct node* makeTree(char op, struct node* left, struct node* right);
-struct node* makeLeaf(double val);
+struct node* makeTree(struct node* parent, struct node* left, struct node* right);
+struct node* makeLeaf(int val);
 int par(struct node* t);
 
 %}
 
 %union{	 	
-	double d;
+	int i;
 	struct node *n;
 }
 
-%token <d> NUM 
+%token <n> NUM 
 %left '-' '+'
 %left '*' '/'
 %right '^'
 %left NEG   
 %type <n>  expr 
+%type <n> '+' '-' '*' '/'
 
 
   
@@ -44,30 +45,28 @@ pgm:		'\n'
 				}
 		;
 		
-expr:		expr '+' expr 	{
-				 $$ = makeTree('+',$1,$3);
+expr:		expr '+' expr 	{ 
+				  $$ = makeTree($2,$1,$3);
 				}
 		|
 		expr '-' expr 	{
-				 $$ = makeTree('-',$1,$3);
+				 $$ = makeTree($2,$1,$3);
 				}
 		|
 		expr '*' expr	{
-				 $$ = makeTree('*',$1,$3);
+				 $$ = makeTree($2,$1,$3);
 				}	
 		|
 		expr '/' expr	{
-				 $$ = makeTree('/',$1,$3);
+				 $$ = makeTree($2,$1,$3);
 				}
 		|
 		'('expr')'	{$$=$2;}
 		|
-		'-' expr  %prec NEG {$$=makeTree('-',NULL, $2); }
+		'-' expr  %prec NEG {	$$ = makeTree($1,NULL,$2); }
 		|
-		expr '^' expr { $$ =  makeTree('^',$1,$3);}		
-		|		
 		NUM		{
-				 $$=makeLeaf($1);
+				 $$=$1;
 				}
 		;	
 			
@@ -80,19 +79,17 @@ int main(void)
 	return yyparse();
 	}
 
-struct node* makeTree(char op, struct node* left, struct node* right)
-{
-	struct node* res = malloc(sizeof(struct node));
-	res->op = op ;
-	res->flag=0;
+struct node* makeTree(struct node* parent, struct node* left, struct node* right)
+{ 
+ 	struct node* res;
 	res->l=left;
  	res->r=right;
 	return res;
 }	
 
-struct node* makeLeaf(double val)
+struct node* makeLeaf(int val)
 {
-	struct node* res = malloc(sizeof(struct node));
+	struct node* res;
 	res->val = val;
 	res->flag = 1;
 	res->l = NULL;
@@ -110,7 +107,7 @@ int par(struct node* t)
 	if(t->flag==0)
 	printf("%c",t->op);
 	else
-	printf("%.10g",t->val);
+	printf("%d",t->val);
 	par(t->r);	 
 	if(t->flag==0) printf(")");
   }
