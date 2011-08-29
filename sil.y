@@ -4,12 +4,7 @@
 #include<math.h>
 
 
-struct node{
-  	int val;
-	char op;
-	int flag;
-	struct node *l, *r;
-};
+
 
 struct node* makeTree(struct node* parent, struct node* left, struct node* right);
 struct node* makeLeaf(int val);
@@ -18,14 +13,17 @@ int par(struct node* t);
 %}
 
 %union{	 	
-	int i;
-	struct node *n;
+	struct node{
+	  	int val;
+		char op;
+		int flag;
+		struct node *l, *r;
+        }*n;
 }
 
 %token <n> NUM 
 %left '-' '+'
-%left '*' '/'
-%right '^'
+%left '*' '/' '%'
 %left NEG   
 %type <n>  expr 
 %type <n> '+' '-' '*' '/'
@@ -81,22 +79,12 @@ int main(void)
 
 struct node* makeTree(struct node* parent, struct node* left, struct node* right)
 { 
- 	struct node* res;
+ 	struct node* res = parent;
 	res->l=left;
  	res->r=right;
 	return res;
 }	
 
-struct node* makeLeaf(int val)
-{
-	struct node* res;
-	res->val = val;
-	res->flag = 1;
-	res->l = NULL;
-	res->r = NULL;
-	return res;
-
-}
 
 int par(struct node* t)
 { 
