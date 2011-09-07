@@ -1,7 +1,6 @@
 %{
 #include<stdio.h>
 #include<string.h>
-#include<math.h>
 
 
 
@@ -26,7 +25,7 @@ int par(struct node* t);
 %left '*' '/' '%'
 %left NEG   
 %type <n>  expr 
-%type <n> '+' '-' '*' '/'
+%type <n> '+' '-' '*' '/' '%'
 
 
   
@@ -56,6 +55,10 @@ expr:		expr '+' expr 	{
 				}	
 		|
 		expr '/' expr	{
+				 $$ = makeTree($2,$1,$3);
+				}
+		|
+		expr '%' expr	{
 				 $$ = makeTree($2,$1,$3);
 				}
 		|
