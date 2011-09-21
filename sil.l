@@ -1,24 +1,26 @@
 %{
 #include <stdio.h>
+#include <string.h>
 #include "y.tab.h"
 
 #define VOID 0
 #define INTEGER 1
 #define BOOLEAN 2
 
-#define GT 'g'
-#define LT 'l'
-#define GE 'G'
-#define LE 'L'
-#define EQ 'E'
-#define NE 'N'
-#define VAR 'v'
-#define CON 'c'
-#define WHILE 'w'
-#define IFELSE 'i'
-#define READ 'R'
-#define WRITE 'W'
+#define gt 'g'
+#define lt 'l'
+#define ge 'G'
+#define le 'L'
+#define eq 'E'
+#define ne 'N'
+#define var 'v'
+#define con 'c'
+#define whileloop 'w'
+#define ifelse 'i'
+#define r 'R'
+#define w 'W'
 
+struct node* makeNode(int type, char nodetype, char* name, int value);
 extern YYSTYPE yylval;
 
 
@@ -26,46 +28,89 @@ extern YYSTYPE yylval;
 
 %%
 
+"decl"                  {  	return DECL;  	 }
+"enddecl"               {  	return ENDDECL;  }
+"integer"               {  	return INT;    }
+"boolean"               {  	return BOOL;   }
+"write"                 {  	yylval.n = makeNode(VOID, w, NULL, 0);
+				return WRITE;  }
+"read"                  {  	yylval.n = makeNode(VOID, r, NULL, 0);
+				return READ;   }
+"begin"                 {  	return BEG;    }
+"end"                   {  	return END;    }
+"main"			{ 	return MAIN;   }
+"if"			{  	return IF;     }
+"else"    		{  	return ELSE;   }
+"then"			{ 	return THEN;   }
+"endif"			{  	return ENDIF;  }
+"while"			{ 	return WHILE;  }
+"do"			{ 	return DO;     }
+"endwhile"		{ 	return ENDWHILE;  }
+
+
 [0-9]+			{     	
-				yylval.n = malloc(sizeof(struct node));
-				yylval.n->TYPE=INTEGER;
-				yylval.n->NODETYPE=CON;
-				yylval.n->NAME="";
-				yylval.n->VALUE = atoi(yytext);
-				yylval.n->ARGLIST=NULL;
-				yylval.n->P1=NULL;
-				yylval.n->P2=NULL;
-				yylval.n->P3=NULL;
-				yylval.n->GENTRY = NULL;
-				yylval.n->LENTRY = NULL;
+				yylval.n = makeNode(INTEGER, con, NULL, atoi(yytext));
 				return NUM;
 			
 			}
-		
+[a-zA-Z][a-zA-Z0-9]*   {	
+				char *s = malloc(yyleng);
+				strcpy(s, yytext);
+				yylval.n = makeNode(INTEGER, var, s, 0);
 
-[-+/*%] 		{ 
-				yylval.n = malloc(sizeof(struct node));
-				yylval.n->TYPE=INTEGER;
-				yylval.n->NODETYPE = *yytext;
-				yylval.n->NAME="";
-				yylval.n->VALUE = 0;				
-				yylval.n->ARGLIST=NULL;
-				yylval.n->P1=NULL;
-				yylval.n->P2=NULL;
-				yylval.n->P3=NULL;
-				yylval.n->GENTRY = NULL;
-				yylval.n->LENTRY = NULL;
+				return ID;		
+			}	
+[-*+/%] 		{ 
+				yylval.n = makeNode(INTEGER, *yytext, NULL, 0);
 				return *yytext;
       			 }
-      			 
-[()\n]			{	return *yytext;
+"="	 		{ 
+				yylval.n = makeNode(VOID, '=', NULL, 0);
+				return *yytext;
+      			 }
+"<"			{ 	yylval.n = makeNode(BOOLEAN, lt, NULL, 0);
+				return LT;
 			}
- 
-. 			{ 	printf("invalid character, exiting...");
-		 		return(0);		  
+">"			{	yylval.n = makeNode(BOOLEAN, gt, NULL, 0);
+				return GT;
 			}
+"<="			{	yylval.n = makeNode(BOOLEAN, le, NULL, 0);
+				return LE;
+			}
+">="			{	yylval.n = makeNode(BOOLEAN, ge, NULL, 0);
+				return GE;
+			}
+"=="			{	yylval.n = makeNode(BOOLEAN, eq, NULL, 0);
+				return EQ;
+			}
+"!="			{	yylval.n = makeNode(BOOLEAN, ne, NULL, 0);
+				return NE;
+			}
+
+
+[ \t\n]+		{
+      			}	 
+[();,\[\]{}]		{	return *yytext;
+			}
+			
+. 			{ 	return(0);		  
+			}
+
 
 %%
 
-
+struct node* makeNode(int type, char nodetype, char* name, int value){
+		struct node* res = malloc(sizeof(struct node));
+		res->TYPE=type;
+		res->NODETYPE=nodetype;
+		res->NAME=name;
+		res->VALUE = value;
+		res->ARGLIST=NULL;
+		res->P1=NULL;
+		res->P2=NULL;
+		res->P3=NULL;
+		res->GENTRY = NULL;
+		res->LENTRY = NULL;
+		return res;
+}
 
