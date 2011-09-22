@@ -79,8 +79,9 @@ struct node* Thead;
 
 }
 
-%token <n> NUM ID WRITE READ GT LT GE LE EQ NE 
+%token <n> NUM BNUM ID WRITE READ  RELOP
 %token IF ENDIF WHILE DO ENDWHILE BEG END BOOL INT DECL ENDDECL MAIN THEN ELSE
+%left RELOP
 %left '-' '+'
 %left '*' '/' '%'
 %left NEG   
@@ -92,6 +93,8 @@ struct node* Thead;
  
 %%
 pgm:		GDefblock  Mainblock    	{  traverse(Thead);  }
+		|
+		Mainblock			{  traverse(Thead); }
 		;
 
 GDefblock:	DECL GDeflist ENDDECL		{		}	
@@ -122,6 +125,8 @@ Mainblock:	INT MAIN '('')'  Fblock 	{   }
 		;
 		
 Fblock:		 LDefblock Stmtblock      	 {  }
+		|
+		Stmtblock			{  }
 		;
 
 LDefblock:	DECL LDlist ENDDECL			{ }			  
@@ -166,13 +171,37 @@ Stmtlist:						{     $$ = NULL;    }
 							}
 		;
 
-stmt:		ID '=' expr				{ if($1->TYPE == $3->TYPE) 
+stmt:		ID '=' expr				{ 
+							  struct Lsymbol* temp = Llookup($1->NAME);
+							  if(temp==NULL) 
+							   {
+							     struct Gsymbol* gtemp = Glookup($1->NAME);
+							      if(gtemp==NULL) yyerror("Undefined Variable");
+							      else
+							       {
+							     	 $1->TYPE = gtemp->TYPE;
+							       }
+							   }
+							  else 
+							   {
+							     $1->TYPE = temp->TYPE;
+							    }
+
+							  if($1->TYPE == $3->TYPE) 
 							 	 $$ = makeTree($2, $1, NULL, $3);
 							  else
-							  	yyerror("Type Mismatch"); 
+							  	{ yyerror("Type Mismatch");}
+						
 							}
 		|
-		ID '[' expr ']' '=' expr		{ if($1->TYPE == $6->TYPE) 
+		ID '[' expr ']' '=' expr		{ 
+							  struct Gsymbol* gtemp = Glookup($1->NAME);
+							  if(gtemp==NULL) yyerror("Undefined Variable");
+							  else
+							       {
+							     	 $1->TYPE = gtemp->TYPE;
+							       }
+							 if($1->TYPE == $6->TYPE) 
 							 	{ $$ = makeTree($5, $1, $3, $6);
 							 	}
 							  else
@@ -193,13 +222,28 @@ stmt:		ID '=' expr				{ if($1->TYPE == $3->TYPE)
 		READ '(' ID '[' expr ']' ')' 		{ 
 					 		 $$ = makeTree($1, $3, $5, NULL);
 							}
+		|
+		IF expr  THEN Stmtlist ';' ELSE Stmtlist ';' ENDIF {
+							   $$ = makeNode1(VOID, 'i', NULL, 0);
+							   $$ = makeTree($$, $2, $4, $7);
+							}
+		|
+		IF expr  THEN Stmtlist ';'  ENDIF     {
+							   $$ = makeNode1(VOID, 'i', NULL, 0);
+							   $$ = makeTree($$, $2, $4, NULL);
+							}
+		|
+		WHILE expr DO Stmtlist';' ENDWHILE		{	$$ = makeNode1(VOID, 'w', NULL, 0);
+								$$ = makeTree($$, $2, $4, NULL);
+		
+							}		
 		;
 
 expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 						   	$$ = makeTree($2, $1, $3, NULL);
 						  else
-						  	yyerror("Type Mismatch");
-						}
+						  	{ yyerror("Type Mismatch"); }
+						 }
 		|
 		expr '-' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 						   	$$ = makeTree($2, $1, $3, NULL);
@@ -232,6 +276,14 @@ expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 						  else
 						  	yyerror("Type Mismatch");
 						  }
+		|
+		expr RELOP expr			{
+						  if( $1->TYPE == $3->TYPE && $1->TYPE == INTEGER )
+						   	$$ = makeTree($2, $1, $3, NULL);
+						  else
+						  	yyerror("Type Mismatch for Boolean Operator");
+						  
+						}
 		|
 		ID				{
 						  $$ = $1;
@@ -266,7 +318,13 @@ expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 		|
 		NUM				{
 				 		$$=$1;
-						}			
+						}
+		|
+		BNUM				{
+						$$=$1; 
+						$$->TYPE = BOOLEAN;
+						}
+					
 %%
 
 int main(void)
@@ -282,21 +340,21 @@ struct node* makeNode1(int type, char nodetype, char* name, int value){
 		res->NODETYPE=nodetype;
 		res->NAME=name;
 		res->VALUE = value;
-		res->ARGLIST=NULL;
-		res->P1=NULL;
-		res->P2=NULL;
-		res->P3=NULL;
-		res->GENTRY = NULL;
-		res->LENTRY = NULL;
+		res->ARGLIST = NULL;
+		res->P1	     = NULL;
+		res->P2      = NULL;
+		res->P3      = NULL;
+		res->GENTRY  = NULL;
+		res->LENTRY  = NULL;
 		return res;
 }
 
 struct node* makeTree( struct node* parent, struct node* P1, struct node* P2, struct node* P3)
 { 
  	struct node* res = parent;
-	res->P1=P1;
-	res->P2=P2;
-	res->P3=P3;
+	res->P1 = P1;
+	res->P2 = P2;
+	res->P3 = P3;
 	Thead = res;
 	return res;
 }
@@ -316,7 +374,7 @@ void Ginstall(char* NAME, int TYPE, int SIZE, struct ArgStruct* ARGLIST)
 void Linstall(char* NAME, int TYPE)
  {
 	   struct Lsymbol* res = malloc(sizeof(struct Lsymbol));
-	   res->NAME=NAME;
+	   res->NAME = NAME;
 	   res->TYPE = TYPE;
 	   res->BINDING = malloc(sizeof(int));
 	   res->NEXT = Lhead;
@@ -327,9 +385,9 @@ struct Gsymbol* Glookup(char* NAME)
  {
 	   struct Gsymbol* res;
 	   res = Ghead;
-	   while(res!=NULL)
+	   while(res != NULL)
 	    {
-	      if(strcmp(res->NAME, NAME)==0)
+	      if(strcmp(res->NAME, NAME) == 0)
 		 return res;
 	      else
 		 res = res->NEXT;
@@ -341,7 +399,7 @@ struct Lsymbol* Llookup(char* NAME)
  {
 	   struct Lsymbol* res;
 	   res = Lhead;
-	   while(res!=NULL)
+	   while(res != NULL)
 	    {
 	      if(strcmp(res->NAME, NAME)==0)
 		 return res;
@@ -359,15 +417,36 @@ int traverse(struct node* t)
 	 	int res; 
 	  	if(t->NODETYPE=='+')
 	  		res = traverse(t->P1)+traverse(t->P2);
-	  	else if(t->NODETYPE=='-')
+	  	else if(t->NODETYPE == '-')
 	  		res = traverse(t->P1)-traverse(t->P2);
-	  	else if(t->NODETYPE=='*')
+	  	else if(t->NODETYPE == '*')
 	  		res = traverse(t->P1)*traverse(t->P2);
-	  	else if(t->NODETYPE=='/')
+	  	else if(t->NODETYPE == '/')
 	  		res = traverse(t->P1)/traverse(t->P2);
-	  	else if(t->NODETYPE=='%')
+	  	else if(t->NODETYPE == '%')
 	  		res = traverse(t->P1)%traverse(t->P2);
-	  	else if(t->NODETYPE=='R')
+	  	else if(t->NODETYPE == gt)
+	  		{if(traverse(t->P1) > traverse(t->P2))
+	  			 return T;
+	  		else  
+	  			return F;
+	  		}
+	  	else if(t->NODETYPE == lt)
+	  		if(traverse(t->P1) < traverse(t->P2)) return T;
+	  		else  return F;
+	  	else if(t->NODETYPE == le)
+	  		if(traverse(t->P1) <= traverse(t->P2)) return T;
+	  		else  return F;
+	  	else if(t->NODETYPE == ge)
+	  		if(traverse(t->P1) >= traverse(t->P2)) return T;
+	  		else  return F;
+	  	else if(t->NODETYPE == eq)
+	  		if(traverse(t->P1) == traverse(t->P2)) return T;
+	  		else  return F;
+	  	else if(t->NODETYPE == ne)
+	  		if(traverse(t->P1) != traverse(t->P2)) return T;
+	  		else  return F;
+	  	else if(t->NODETYPE == 'R')
 	  	  {
 	  	   	 
 	  	   	   struct Lsymbol* check = Llookup(t->P1->NAME);
@@ -379,7 +458,20 @@ int traverse(struct node* t)
 			      else
 			       { 
 			        if(t->P2 == NULL)
-			        	*(gcheck->BINDING) = traverse(t->P3);
+			          {
+			              if(gcheck->TYPE==BOOLEAN) 
+			             	{ char bval[6];
+			             	  scanf("%s", bval );
+			             	  if(strcmp(bval,"TRUE")) 
+			             	  	*(gcheck->BINDING) = 1;
+			             	  else if(strcmp(bval,"FALSE")) 
+			             	  	*(gcheck->BINDING) = 0;
+			             	  else
+			             	        yyerror("Unrecognized constant");
+			             	}
+			             else
+			             	scanf("%d",gcheck->BINDING);
+			           }
 			        else
 			         {
 			           int pos = traverse(t->P2);
@@ -387,16 +479,36 @@ int traverse(struct node* t)
 			           	yyerror("Exceeding size of array");
 			           else
 			             {
-			             	scanf("%d", (gcheck->BINDING+pos) );
+			             	if(gcheck->TYPE==BOOLEAN) 
+			             	{ char bval[6];
+			             	  scanf("%s", bval );
+			             	  if(strcmp(bval,"TRUE")==0) 
+			             	  	*(gcheck->BINDING+pos) = 1;
+			             	  else if(strcmp(bval,"FALSE")==0) 
+			             	  	*(gcheck->BINDING+pos) = 0;
+			             	  else
+			             	        yyerror("Unrecognized constant");
+			             	}
+				        else
+				     	   scanf("%d",(gcheck->BINDING+pos));			               
 			             }
-			         
-			         }
+			          }
 			       } 
 			    }
 			   else
-			    {   check->BINDING = malloc(sizeof(int));
-			        scanf("%d",check->BINDING); 	
-			    }
+			   {     if(check->TYPE==BOOLEAN) 
+			             	{ char bval[6];
+			             	  scanf("%s", bval );
+			             	  if(strcmp(bval,"TRUE")==0) 
+			             	  	*(check->BINDING) = 1;
+			             	  else if(strcmp(bval,"FALSE")==0)
+			             	  	*(check->BINDING) = 0;
+			             	  else
+			             	        yyerror("Unrecognized constant");
+			             	}
+			      	else
+				     	   scanf("%d",(check->BINDING));
+			   }
 	  	  }	
 	  	else if(t->NODETYPE=='=')
 	  	 {
@@ -420,10 +532,9 @@ int traverse(struct node* t)
 			             {
 			             	*(gcheck->BINDING + pos) = traverse(t->P3);
 			             }
-			         
-			         }   
-			       }
-			     }
+			           }   
+			         }
+			      }
 	  	 	else
 	  	 	 {
 	  	 	   *(check->BINDING) = traverse(t->P3);
@@ -431,18 +542,33 @@ int traverse(struct node* t)
 	  	 }
 	  	else if(t->NODETYPE=='W')
 	  	  {
+	  	   	if(t->P1->TYPE==INTEGER)
 	  	   	  printf("%d\n",traverse(t->P1));
+	  	   	else
+	  	   	 {
+	  	   	   if(traverse(t->P1)==1)
+	  	   	   	printf("TRUE\n");
+	  	   	   else 
+	  	   	        printf("FALSE\n");
+	  	   	 }
 	  	  }	
-	  	else if(t->NODETYPE=='i')		//For if else, to be done!
+	  	else if(t->NODETYPE=='i')		
 	  	  {
-	  	  
+	  	     	if(traverse(t->P1)&&t->P1->TYPE==BOOLEAN)
+	  	    	  traverse(t->P2); 
+	  	    	else 
+	  	    	  traverse(t->P3);
 	  	  
 	  	  }
-	  	else if(t->NODETYPE=='w')		//For while loop to be done!
+	  	else if(t->NODETYPE=='w')		
 	  	  {
+	  	  	while(traverse(t->P1)&&t->P1->TYPE==BOOLEAN)
+	  	  	 {
+	  	  	  traverse(t->P2); 
+	  	  	 }
 	  	  
 	  	  }
-	  	else if(t->NODETYPE=='v')
+	  	else if(t->NODETYPE=='v') 		
 	  	 { 
 	  	 	
 	  	 	if(t->P1==NULL)

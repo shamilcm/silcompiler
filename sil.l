@@ -7,6 +7,9 @@
 #define INTEGER 1
 #define BOOLEAN 2
 
+#define T 1;
+#define F 0;
+
 #define gt 'g'
 #define lt 'l'
 #define ge 'G'
@@ -46,7 +49,11 @@ extern YYSTYPE yylval;
 "while"			{ 	return WHILE;  }
 "do"			{ 	return DO;     }
 "endwhile"		{ 	return ENDWHILE;  }
-
+"TRUE"			{	yylval.n = makeNode(BOOLEAN, con, NULL, 1);
+				return BNUM;		}
+"FALSE"			{	yylval.n = makeNode(BOOLEAN, con, NULL, 0);
+				return BNUM;
+			}
 
 [0-9]+			{     	
 				yylval.n = makeNode(INTEGER, con, NULL, atoi(yytext));
@@ -69,22 +76,22 @@ extern YYSTYPE yylval;
 				return *yytext;
       			 }
 "<"			{ 	yylval.n = makeNode(BOOLEAN, lt, NULL, 0);
-				return LT;
+				return RELOP;
 			}
 ">"			{	yylval.n = makeNode(BOOLEAN, gt, NULL, 0);
-				return GT;
+				return RELOP;
 			}
 "<="			{	yylval.n = makeNode(BOOLEAN, le, NULL, 0);
-				return LE;
+				return RELOP;
 			}
 ">="			{	yylval.n = makeNode(BOOLEAN, ge, NULL, 0);
-				return GE;
+				return RELOP;
 			}
 "=="			{	yylval.n = makeNode(BOOLEAN, eq, NULL, 0);
-				return EQ;
+				return RELOP;
 			}
 "!="			{	yylval.n = makeNode(BOOLEAN, ne, NULL, 0);
-				return NE;
+				return RELOP;
 			}
 
 
