@@ -16,6 +16,7 @@
 #define eq 'E'
 #define ne 'N'
 #define var 'v'
+#define arr 'a'
 #define con 'c'
 #define whileloop 'w'
 #define ifelse 'i'
@@ -45,13 +46,12 @@ void Ginstall(char* NAME, int TYPE, int SIZE, struct ArgStruct* ARGLIST); // Ins
 struct Lsymbol {
 	char *NAME; 		// Name of the Identifier
 	int TYPE; 		// TYPE can be INTEGER or BOOLEAN
-	int SIZE; 		// Size field for arrays
 	int *BINDING; 		// Address of the Identifier in Memory
 	struct Lsymbol *NEXT;	// Pointer to next Symbol Table Entry */
 }*Lhead;
 
 struct Lsymbol *Llookup(char* NAME);
-void Linstall(char* NAME, int TYPE, int SIZE);
+void Linstall(char* NAME, int TYPE);
 
 struct node* makeTree( struct node* parent, struct node* P1, struct node* P2, struct node* P3);
 struct node* makeNode1(int type, char nodetype, char* name, int value);
@@ -115,7 +115,7 @@ GId:		ID					{
 								Ginstall($1->NAME, typeval, 1, NULL); 
 							}
 		|
-		ID'['NUM']'				{  Ginstall($1->NAME, typeval, $3->VALUE, NULL);  }
+		ID'['NUM']'				{       Ginstall($1->NAME, typeval, $3->VALUE, NULL);  }
 		;
 
 Mainblock:	INT MAIN '('')'  Fblock 	{   }
@@ -146,10 +146,8 @@ LIdlist:	LIdlist ',' LId				{			}
 		LId					{			}
 		;
 		
-LId:		ID					{   Linstall($1->NAME, typeval, 1); 
+LId:		ID					{   Linstall($1->NAME, typeval); 
 							}		
-		|
-		ID'['NUM']'				{  Linstall($1->NAME, typeval, $3->VALUE); }
 		;
 
 Stmtblock:	BEG Stmtlist ';' END				
@@ -169,12 +167,16 @@ Stmtlist:						{     $$ = NULL;    }
 		;
 
 stmt:		ID '=' expr				{ if($1->TYPE == $3->TYPE) 
-							 	 $$ = makeTree($2, $1, $3, NULL);
+							 	 $$ = makeTree($2, $1, NULL, $3);
 							  else
 							  	yyerror("Type Mismatch"); 
 							}
 		|
-		ID '[' expr ']' '=' expr		{	
+		ID '[' expr ']' '=' expr		{ if($1->TYPE == $6->TYPE) 
+							 	{ $$ = makeTree($5, $1, $3, $6);
+							 	}
+							  else
+							  	yyerror("Type Mismatch"); 	
 		
 							}
 		|
@@ -186,6 +188,10 @@ stmt:		ID '=' expr				{ if($1->TYPE == $3->TYPE)
 		READ '(' ID ')' 			{ 
 							  $$ = makeTree($1, $3, NULL, NULL);
 
+							}
+		|
+		READ '(' ID '[' expr ']' ')' 		{ 
+					 		 $$ = makeTree($1, $3, $5, NULL);
 							}
 		;
 
@@ -247,7 +253,15 @@ expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 						}
 		|
 		ID'['expr']'			{
-		
+		 				  $$ = makeTree($1,$3,NULL,NULL);
+		 				  struct Gsymbol* gtemp = Glookup($$->NAME);
+					      	  if(gtemp==NULL) yyerror("Undefined Variable1");
+					          else
+					           {
+					       		 $$->GENTRY = gtemp;
+					     	 	 $$->TYPE = gtemp->TYPE;
+					     	   }
+						  
 						}
 		|
 		NUM				{
@@ -295,15 +309,16 @@ void Ginstall(char* NAME, int TYPE, int SIZE, struct ArgStruct* ARGLIST)
 	   res->SIZE = SIZE; 
 	   res->ARGLIST = ARGLIST; 
 	   res->NEXT = Ghead;
+	   res->BINDING = malloc(sizeof(int)*SIZE);
 	   Ghead = res;
  }
 
-void Linstall(char* NAME, int TYPE, int SIZE)
+void Linstall(char* NAME, int TYPE)
  {
 	   struct Lsymbol* res = malloc(sizeof(struct Lsymbol));
 	   res->NAME=NAME;
 	   res->TYPE = TYPE;
-	   res->SIZE = SIZE;
+	   res->BINDING = malloc(sizeof(int));
 	   res->NEXT = Lhead;
 	   Lhead = res;
  }
@@ -356,15 +371,26 @@ int traverse(struct node* t)
 	  	  {
 	  	   	 
 	  	   	   struct Lsymbol* check = Llookup(t->P1->NAME);
-	  	   	   printf("%s:",t->P1->NAME);
 	  		   if(check==NULL)
 	  		    {
 	  		      struct Gsymbol* gcheck = Glookup(t->P1->NAME);
 	  		      if(gcheck==NULL)
 	  		      	yyerror("Undefined Variable in read statement");
 			      else
-			       { gcheck->BINDING = malloc(sizeof(int));
-			        scanf("%d",gcheck->BINDING); 
+			       { 
+			        if(t->P2 == NULL)
+			        	*(gcheck->BINDING) = traverse(t->P3);
+			        else
+			         {
+			           int pos = traverse(t->P2);
+			           if(pos >= (gcheck->SIZE) || pos<0 )
+			           	yyerror("Exceeding size of array");
+			           else
+			             {
+			             	scanf("%d", (gcheck->BINDING+pos) );
+			             }
+			         
+			         }
 			       } 
 			    }
 			   else
@@ -374,20 +400,33 @@ int traverse(struct node* t)
 	  	  }	
 	  	else if(t->NODETYPE=='=')
 	  	 {
-	  	 	int *x = malloc(sizeof(int));
-	  	 	*x = traverse(t->P2);
+	  	 	
 	  	 	struct Lsymbol *check = Llookup(t->P1->NAME);
 	  	 	if(check==NULL) 	  		
 	  	 	    {
 	  		      struct Gsymbol* gcheck = Glookup(t->P1->NAME);
 	  		      if(gcheck==NULL)
-	  		      	yyerror("Undefined Variable in read statement");
+	  		      	yyerror("Undefined Variable in assignment statement");
 			      else
-			        gcheck->BINDING = x;
+			        { 
+			        if(t->P2 == NULL)
+			        	*(gcheck->BINDING) = traverse(t->P3);
+			        else
+			         {
+			           int pos = traverse(t->P2);
+			           if(pos >= (gcheck->SIZE) || pos<0 )
+			           	yyerror("Exceeding size of array");
+			           else
+			             {
+			             	*(gcheck->BINDING + pos) = traverse(t->P3);
+			             }
+			         
+			         }   
+			       }
 			     }
 	  	 	else
 	  	 	 {
-	  	 	   check->BINDING = x;
+	  	 	   *(check->BINDING) = traverse(t->P3);
 	  	 	 }
 	  	 }
 	  	else if(t->NODETYPE=='W')
@@ -404,11 +443,25 @@ int traverse(struct node* t)
 	  	  
 	  	  }
 	  	else if(t->NODETYPE=='v')
-	  	 {
-	  	 	if(t->LENTRY!=NULL)
-	  	 		res = *(t->LENTRY->BINDING);
-	  	 	else
-	  	 		res = *(t->GENTRY->BINDING);
+	  	 { 
+	  	 	
+	  	 	if(t->P1==NULL)
+	  	 	{
+				if(t->LENTRY!=NULL)
+					res = *(t->LENTRY->BINDING);
+				else
+					res = *(t->GENTRY->BINDING);
+			}
+			else
+			{
+			  int pos = traverse(t->P1);
+			  if(pos < t->GENTRY->SIZE || pos >= 0)
+			   {
+			      res = *(t->GENTRY->BINDING + pos);
+			   } 
+			  
+		         }
+	  	 	
 	  	 }
 	  	else if(t->NODETYPE=='c')
 	  	 {
