@@ -1,0 +1,13 @@
+decl
+integer a;
+enddecl
+integer main()
+decl
+integer b;
+enddecl
+begin
+read(a);
+read(b);
+write(a+b);
+end
+

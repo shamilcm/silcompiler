@@ -1,6 +1,7 @@
 %{
 #include<stdio.h>
 #include<string.h>
+#include<stdlib.h>
 
 #define VOID 0
 #define INTEGER 1
@@ -92,7 +93,7 @@ struct node* Thead;
   
  
 %%
-pgm:		GDefblock  Mainblock    	{  traverse(Thead);  }
+pgm:		GDefblock  Mainblock    	{  traverse(Thead); exit(1);  }
 		|
 		Mainblock			{  traverse(Thead); }
 		;
@@ -155,7 +156,9 @@ LId:		ID					{   Linstall($1->NAME, typeval);
 							}		
 		;
 
-Stmtblock:	BEG Stmtlist ';' END				
+Stmtblock:	BEG Stmtlist ';' END			{ }
+		|
+		BEG END					{ }		
 		;
 
 Stmtlist:						{     $$ = NULL;    }
@@ -176,7 +179,7 @@ stmt:		ID '=' expr				{
 							  if(temp==NULL) 
 							   {
 							     struct Gsymbol* gtemp = Glookup($1->NAME);
-							      if(gtemp==NULL) yyerror("Undefined Variable");
+							      if(gtemp==NULL || gtemp->SIZE!=1) yyerror("Undefined Variable");
 							      else
 							       {
 							     	 $1->TYPE = gtemp->TYPE;
@@ -196,7 +199,7 @@ stmt:		ID '=' expr				{
 		|
 		ID '[' expr ']' '=' expr		{ 
 							  struct Gsymbol* gtemp = Glookup($1->NAME);
-							  if(gtemp==NULL) yyerror("Undefined Variable");
+							  if(gtemp==NULL || gtemp->SIZE==1) yyerror("Undefined Array");
 							  else
 							       {
 							     	 $1->TYPE = gtemp->TYPE;
@@ -210,17 +213,34 @@ stmt:		ID '=' expr				{
 							}
 		|
 		WRITE '('expr ')'			{ 
+							  
 							  $$ = makeTree($1, $3, NULL, NULL);
 		
 							}
 		|
 		READ '(' ID ')' 			{ 
-							  $$ = makeTree($1, $3, NULL, NULL);
-
+							  struct Lsymbol *temp = Llookup($3->NAME);
+							  if(temp==NULL)
+							   { struct Gsymbol *gtemp = Glookup($3->NAME);
+							     if(gtemp==NULL && gtemp->SIZE!=1)
+							      {
+							       yyerror("Undefined variable in READ");
+							      }
+							     else
+							       $$ = makeTree($1, $3, NULL, NULL);
+							    }
+							  else
+							      $$ = makeTree($1, $3, NULL, NULL);
 							}
 		|
 		READ '(' ID '[' expr ']' ')' 		{ 
-					 		 $$ = makeTree($1, $3, $5, NULL);
+					 		  struct Gsymbol *gtemp = Glookup($3->NAME);
+					 		  if(gtemp == NULL && gtemp->SIZE==1)
+					 		   {
+					 		     yyerror("Undefined array in READ");
+					 		   }
+					 		  else
+					 		   $$ = makeTree($1, $3, $5, NULL);
 							}
 		|
 		IF expr  THEN Stmtlist ';' ELSE Stmtlist ';' ENDIF {
@@ -606,7 +626,8 @@ int traverse(struct node* t)
 	   	return res;
 	   }		  	  	
 	else
-	  	return 0;
+	   	return 0;
+	 
 }
 
 int yyerror (char *msg) 

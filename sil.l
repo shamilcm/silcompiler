@@ -74,7 +74,7 @@ extern YYSTYPE yylval;
 "="	 		{ 
 				yylval.n = makeNode(VOID, '=', NULL, 0);
 				return *yytext;
-      			 }
+     			 }
 "<"			{ 	yylval.n = makeNode(BOOLEAN, lt, NULL, 0);
 				return RELOP;
 			}
@@ -120,4 +120,9 @@ struct node* makeNode(int type, char nodetype, char* name, int value){
 		res->LENTRY = NULL;
 		return res;
 }
+
+int yywrap(void)
+ {
+      return 1;
+ }
 
