@@ -24,6 +24,11 @@
 #define r 'R'
 #define w 'W'
 
+int regcount = 0;
+int adrcount = 0;
+int ifcount = 0;
+int whilecount = 0;
+
 
 struct ArgStruct{
 	char* ARGNAME;
@@ -93,9 +98,22 @@ struct node* Thead;
   
  
 %%
-pgm:		GDefblock  Mainblock    	{  traverse(Thead); exit(1);  }
+pgm:		GDefblock  Mainblock    	{ 
+						traverse(Thead); 
+						FILE *fp;
+						fp=fopen("sim","a");
+						fprintf(fp,"HALT\n");
+						fclose(fp);	
+						exit(1); 
+						}
 		|
-		Mainblock			{  traverse(Thead); }
+		Mainblock			{  
+						traverse(Thead); 
+						FILE *fp;
+						fp=fopen("sim","a");
+						fprintf(fp,"HALT\n");
+						fclose(fp);
+						}
 		;
 
 GDefblock:	DECL GDeflist ENDDECL		{		}	
@@ -349,8 +367,13 @@ expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 
 int main(void)
   { 
+	FILE *fp;
+	fp = fopen("sim","w");
+	fprintf(fp,"START\n");
+	fclose(fp);
+	yyparse();
+    	return 0;
 	
-	return yyparse();
 	}
 
 
@@ -436,36 +459,138 @@ int traverse(struct node* t)
 	  {	
 	 	int res; 
 	  	if(t->NODETYPE=='+')
-	  		res = traverse(t->P1)+traverse(t->P2);
+	  	{	res = traverse(t->P1)+traverse(t->P2);
+	  	
+	  		/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim","a");
+			fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*-------------------------------------------------------*/
+	  	}
 	  	else if(t->NODETYPE == '-')
-	  		res = traverse(t->P1)-traverse(t->P2);
+	  	{	res = traverse(t->P1)-traverse(t->P2);
+	  	
+	  		/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim","a");
+			fprintf(fp,"SUB R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+	  	}
 	  	else if(t->NODETYPE == '*')
-	  		res = traverse(t->P1)*traverse(t->P2);
+	  	{	res = traverse(t->P1)*traverse(t->P2);
+	  	
+	  		/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim","a");
+			fprintf(fp,"MUL R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+	  	}
 	  	else if(t->NODETYPE == '/')
-	  		res = traverse(t->P1)/traverse(t->P2);
+	  	{	res = traverse(t->P1)/traverse(t->P2);
+	  	
+	  		/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim","a");
+			fprintf(fp,"DIV R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+	  	}
 	  	else if(t->NODETYPE == '%')
-	  		res = traverse(t->P1)%traverse(t->P2);
+	  	{	res = traverse(t->P1)/traverse(t->P2);
+	  	
+	  		/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim","a");
+			fprintf(fp,"MOD R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+	  	}
 	  	else if(t->NODETYPE == gt)
-	  		{if(traverse(t->P1) > traverse(t->P2))
-	  			 return T;
-	  		else  
-	  			return F;
-	  		}
+  		{	if(traverse(t->P1) > traverse(t->P2))
+  			   res = T;
+  			else  
+  			   res = F;
+  			/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim","a");
+			fprintf(fp,"GT R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+  		}
 	  	else if(t->NODETYPE == lt)
-	  		if(traverse(t->P1) < traverse(t->P2)) return T;
-	  		else  return F;
+  		{	if(traverse(t->P1) < traverse(t->P2))
+  			   res = T;
+  			else  
+  			   res =  F;
+  			/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim","a");
+			fprintf(fp,"LT R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+  		}
 	  	else if(t->NODETYPE == le)
-	  		if(traverse(t->P1) <= traverse(t->P2)) return T;
-	  		else  return F;
+  		{	if(traverse(t->P1) <= traverse(t->P2))
+  			   res = T;
+  			else  
+  			   res = F;
+  			/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim","a");
+			fprintf(fp,"LE R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+  		}
 	  	else if(t->NODETYPE == ge)
-	  		if(traverse(t->P1) >= traverse(t->P2)) return T;
-	  		else  return F;
+  		{	if(traverse(t->P1) >= traverse(t->P2))
+  			   res = T;
+  			else  
+  			   res = F;
+  			/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim","a");
+			fprintf(fp,"GE R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+  		}
 	  	else if(t->NODETYPE == eq)
-	  		if(traverse(t->P1) == traverse(t->P2)) return T;
-	  		else  return F;
+  		{	if(traverse(t->P1) == traverse(t->P2))
+  			   res = T;
+  			else  
+  			   res = F;
+  			/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim","a");
+			fprintf(fp,"EQ R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+  		}
 	  	else if(t->NODETYPE == ne)
-	  		if(traverse(t->P1) != traverse(t->P2)) return T;
-	  		else  return F;
+  		{	if(traverse(t->P1) != traverse(t->P2))
+  			   res = T;
+  			else  
+  			   res =  F;
+  			/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim","a");
+			fprintf(fp,"NE R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+  		}
 	  	else if(t->NODETYPE == 'R')
 	  	  {
 	  	   	 
@@ -563,14 +688,24 @@ int traverse(struct node* t)
 	  	else if(t->NODETYPE=='W')
 	  	  {
 	  	   	if(t->P1->TYPE==INTEGER)
-	  	   	  printf("%d\n",traverse(t->P1));
+	  	   	{  printf("%d\n",traverse(t->P1));
+	  	   	}
 	  	   	else
 	  	   	 {
 	  	   	   if(traverse(t->P1)==1)
-	  	   	   	printf("TRUE\n");
+	  	   	    {	printf("TRUE\n");
+	  	   	        
+	  	   	     }
 	  	   	   else 
 	  	   	        printf("FALSE\n");
 	  	   	 }
+		  	   /*--------------For Code Generation-----------------------*/
+			   FILE *fp;
+			   fp = fopen("sim","a");
+			   fprintf(fp,"OUT R%d\n", regcount-1);
+			   regcount--;
+			   fclose(fp);
+			   /*--------------------------------------------------------*/
 	  	  }	
 	  	else if(t->NODETYPE=='i')		
 	  	  {
@@ -612,6 +747,14 @@ int traverse(struct node* t)
 	  	else if(t->NODETYPE=='c')
 	  	 {
 	  	 	res = t->VALUE;
+			/*--------------For Code Generation-----------------------*/
+	  	 	FILE *fp;
+			fp = fopen("sim","a");
+			fprintf(fp,"MOV R%d,%d\n", regcount, res);
+			regcount++;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+	  	 	
 	  	 }
 	  	else if(t->NODETYPE=='s')
 	  	 {
