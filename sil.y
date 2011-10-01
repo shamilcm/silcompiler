@@ -25,9 +25,55 @@
 #define w 'W'
 
 int regcount = 0;
-int adrcount = 0;
+int memcount = 100;
 int ifcount = 0;
 int whilecount = 0;
+
+struct istack
+{
+ int value;
+ struct istack *next;
+}*itop;
+
+struct wstack{
+ int value;
+ struct wstack *next;
+}*wtop;
+
+
+void ipush(int count)
+{
+ struct istack *temp = malloc(sizeof(struct istack));
+ temp->value = count;
+ temp->next = itop;
+ itop = temp;
+ }
+
+int ipop()
+{
+  struct istack *temp = itop;
+  int res = temp->value;
+  itop = itop->next;
+  free(temp);
+  return res; 
+}
+
+void wpush(int count)
+{
+ struct wstack *temp = malloc(sizeof(struct wstack));
+ temp->value = count;
+ temp->next = wtop;
+ wtop = temp;
+ }
+
+int wpop()
+{
+  struct wstack *temp = wtop;
+  int res = temp->value;
+  wtop = wtop->next;
+  free(temp);
+  return res; 
+}
 
 
 struct ArgStruct{
@@ -40,7 +86,8 @@ struct Gsymbol {
 	char* NAME; 		// Name of the Identifier
 	int TYPE; 		// TYPE can be INTEGER or BOOLEAN
 	int SIZE; 		// Size field for arrays
-	int *BINDING; 		// Address of the Identifier in Memory
+	int *VALUE; 		// Address of the Identifier in Memory
+	int BINDING;		// Position in the memory for Code Generation
 	struct ArgStruct* ARGLIST;	// Argument List for functions, AgStruct - name and type of each argument
 	struct Gsymbol *NEXT;	// Pointer to next Symbol Table Entry */
 }*Ghead;
@@ -52,7 +99,8 @@ void Ginstall(char* NAME, int TYPE, int SIZE, struct ArgStruct* ARGLIST); // Ins
 struct Lsymbol {
 	char *NAME; 		// Name of the Identifier
 	int TYPE; 		// TYPE can be INTEGER or BOOLEAN
-	int *BINDING; 		// Address of the Identifier in Memory
+	int *VALUE; 		// Address of the Identifier in Memory
+	int BINDING;		// Position in the memory for Code Generation
 	struct Lsymbol *NEXT;	// Pointer to next Symbol Table Entry */
 }*Lhead;
 
@@ -200,11 +248,13 @@ stmt:		ID '=' expr				{
 							      if(gtemp==NULL || gtemp->SIZE!=1) yyerror("Undefined Variable");
 							      else
 							       {
+							     	 $1->GENTRY = gtemp;
 							     	 $1->TYPE = gtemp->TYPE;
 							       }
 							   }
 							  else 
 							   {
+							     $1->LENTRY = temp;
 							     $1->TYPE = temp->TYPE;
 							    }
 
@@ -223,7 +273,8 @@ stmt:		ID '=' expr				{
 							     	 $1->TYPE = gtemp->TYPE;
 							       }
 							 if($1->TYPE == $6->TYPE) 
-							 	{ $$ = makeTree($5, $1, $3, $6);
+							 	{ $1->GENTRY = gtemp;
+							 	  $$ = makeTree($5, $1, $3, $6);
 							 	}
 							  else
 							  	yyerror("Type Mismatch"); 	
@@ -245,10 +296,16 @@ stmt:		ID '=' expr				{
 							       yyerror("Undefined variable in READ");
 							      }
 							     else
+							      {
+							       $3->GENTRY = gtemp;
 							       $$ = makeTree($1, $3, NULL, NULL);
+							      }
 							    }
 							  else
+							   {
+							      $3->LENTRY = temp;
 							      $$ = makeTree($1, $3, NULL, NULL);
+							   }
 							}
 		|
 		READ '(' ID '[' expr ']' ')' 		{ 
@@ -258,7 +315,11 @@ stmt:		ID '=' expr				{
 					 		     yyerror("Undefined array in READ");
 					 		   }
 					 		  else
-					 		   $$ = makeTree($1, $3, $5, NULL);
+					 		    { 
+					 		      $3->GENTRY = gtemp;
+					 		      $$ = makeTree($1, $3, $5, NULL);
+							      
+							    }
 							}
 		|
 		IF expr  THEN Stmtlist ';' ELSE Stmtlist ';' ENDIF {
@@ -329,7 +390,7 @@ expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 						  if(temp==NULL) 
 						   {
 						     struct Gsymbol* gtemp = Glookup($$->NAME);
-						      if(gtemp==NULL) yyerror("Undefined Variable1");
+						      if(gtemp==NULL) yyerror("Undefined Variable in Expression");
 						      else
 						       {
 						       	 $$->GENTRY = gtemp;
@@ -409,8 +470,12 @@ void Ginstall(char* NAME, int TYPE, int SIZE, struct ArgStruct* ARGLIST)
 	   res->TYPE = TYPE;
 	   res->SIZE = SIZE; 
 	   res->ARGLIST = ARGLIST; 
+	   res->VALUE = malloc(sizeof(int)*SIZE);
+	   /*-----------Code Generation-------------------*/
+	   res->BINDING = memcount;
+	   memcount = memcount+SIZE;
+	   /*---------------------------------------------*/
 	   res->NEXT = Ghead;
-	   res->BINDING = malloc(sizeof(int)*SIZE);
 	   Ghead = res;
  }
 
@@ -419,7 +484,11 @@ void Linstall(char* NAME, int TYPE)
 	   struct Lsymbol* res = malloc(sizeof(struct Lsymbol));
 	   res->NAME = NAME;
 	   res->TYPE = TYPE;
-	   res->BINDING = malloc(sizeof(int));
+	   res->VALUE = malloc(sizeof(int));
+	   /*----------------------Code Generation---------------------*/
+	   res->BINDING = memcount;
+	   memcount++;
+	   /*----------------------------------------------------------*/
 	   res->NEXT = Lhead;
 	   Lhead = res;
  }
@@ -458,7 +527,7 @@ int traverse(struct node* t)
 	 if(t!=NULL)
 	  {	
 	 	int res; 
-	  	if(t->NODETYPE=='+')
+	  	if(t->NODETYPE=='+')					
 	  	{	res = traverse(t->P1)+traverse(t->P2);
 	  	
 	  		/*--------------For Code Generation-----------------------*/
@@ -595,29 +664,55 @@ int traverse(struct node* t)
 	  	  {
 	  	   	 
 	  	   	   struct Lsymbol* check = Llookup(t->P1->NAME);
-	  		   if(check==NULL)
+	  		   if(check==NULL)				
 	  		    {
 	  		      struct Gsymbol* gcheck = Glookup(t->P1->NAME);
-	  		      if(gcheck==NULL)
+	  		      if(gcheck==NULL)					
 	  		      	yyerror("Undefined Variable in read statement");
 			      else
 			       { 
-			        if(t->P2 == NULL)
+			        if(t->P2 == NULL)					
 			          {
-			              if(gcheck->TYPE==BOOLEAN) 
+			              if(gcheck->TYPE==BOOLEAN)	 				
 			             	{ char bval[6];
 			             	  scanf("%s", bval );
-			             	  if(strcmp(bval,"TRUE")) 
-			             	  	*(gcheck->BINDING) = 1;
-			             	  else if(strcmp(bval,"FALSE")) 
-			             	  	*(gcheck->BINDING) = 0;
+			             	  if(strcmp(bval,"TRUE")) 					
+			             	  {	
+						*(gcheck->VALUE) = 1;            	  
+			             	  }
+			             	  else if(strcmp(bval,"FALSE")) 				
+			             	  {	
+						*(gcheck->VALUE) = 0;
+			             	  }
 			             	  else
-			             	        yyerror("Unrecognized constant");
+			             	  {      yyerror("Unrecognized constant");
+			             	  }
+					/*--------------For Code Generation-----------------------*/
+					   FILE *fp;
+					   fp = fopen("sim","a");
+					   fprintf(fp,"IN R%d\n",regcount);
+					   regcount++;
+					   fprintf(fp,"MOV [%d],R%d\n",gcheck->BINDING,regcount-1);
+					   regcount--;
+					   fclose(fp);
+					/*--------------------------------------------------------*/
 			             	}
-			             else
-			             	scanf("%d",gcheck->BINDING);
+			             else							
+			              {	
+			                scanf("%d",gcheck->VALUE);
+					/*--------------For Code Generation-----------------------*/
+					   FILE *fp;
+					   fp = fopen("sim","a");
+					   fprintf(fp,"IN R%d\n",regcount);
+					   regcount++;
+					   fprintf(fp,"MOV [%d],R%d\n",gcheck->BINDING,regcount-1);
+					   regcount--;
+					   fclose(fp);
+					/*--------------------------------------------------------*/		
+			              
+			              }
 			           }
-			        else
+			        else							
 			         {
 			           int pos = traverse(t->P2);
 			           if(pos >= (gcheck->SIZE) || pos<0 )
@@ -628,14 +723,47 @@ int traverse(struct node* t)
 			             	{ char bval[6];
 			             	  scanf("%s", bval );
 			             	  if(strcmp(bval,"TRUE")==0) 
-			             	  	*(gcheck->BINDING+pos) = 1;
+			             	  {	*(gcheck->VALUE+pos) = 1;
+			             	  }
 			             	  else if(strcmp(bval,"FALSE")==0) 
-			             	  	*(gcheck->BINDING+pos) = 0;
+			             	   {	*(gcheck->VALUE+pos) = 0;
+			             	   }
 			             	  else
-			             	        yyerror("Unrecognized constant");
+			             	   {  yyerror("Unrecognized constant");
+				            }	   
+					   /*--------------For Code Generation-----------------------*/
+					   FILE *fp;
+					   fp = fopen("sim","a");
+					   fprintf(fp,"MOV R%d,%d\n", regcount, gcheck->BINDING);
+					   regcount++;
+					   fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
+					   regcount--;
+					   fprintf(fp,"IN R%d\n", regcount);
+					   regcount++;
+					   fprintf(fp,"MOV [R%d],R%d\n", regcount-2, regcount-1);
+					   regcount=regcount-2;
+					   fclose(fp);
+					   /*--------------------------------------------------------*/	
 			             	}
 				        else
-				     	   scanf("%d",(gcheck->BINDING+pos));			               
+				     	{
+				     	   
+				     	   scanf("%d",(gcheck->VALUE+pos));
+					    /*--------------For Code Generation-----------------------*/
+					   FILE *fp;
+					   fp = fopen("sim","a");
+					   fprintf(fp,"MOV R%d,%d\n", regcount, gcheck->BINDING);
+					   regcount++;
+					   fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
+					   regcount--;
+					   fprintf(fp,"IN R%d\n", regcount);
+					   regcount++;
+					   fprintf(fp,"MOV [R%d],R%d\n", regcount-2, regcount-1);
+					   regcount=regcount-2;
+					   fclose(fp);
+					   /*--------------------------------------------------------*/	
+				     	   			               
+			                }
 			             }
 			          }
 			       } 
@@ -645,14 +773,39 @@ int traverse(struct node* t)
 			             	{ char bval[6];
 			             	  scanf("%s", bval );
 			             	  if(strcmp(bval,"TRUE")==0) 
-			             	  	*(check->BINDING) = 1;
+			             	  {	*(check->VALUE) = 1;			             	  
+			             	   }
 			             	  else if(strcmp(bval,"FALSE")==0)
-			             	  	*(check->BINDING) = 0;
+			             	  {	*(check->VALUE) = 0;
+ 
+			             	  }
 			             	  else
-			             	        yyerror("Unrecognized constant");
+			             	   {     yyerror("Unrecognized constant");
+					    }
+					/*--------------For Code Generation-----------------------*/
+					   FILE *fp;
+					   fp = fopen("sim","a");
+					   fprintf(fp,"IN R%d\n",regcount);
+					   regcount++;
+					   fprintf(fp,"MOV [%d],R%d\n",check->BINDING,regcount-1);
+					   regcount--;
+					   fclose(fp);
+					/*--------------------------------------------------------*/	
 			             	}
 			      	else
-				     	   scanf("%d",(check->BINDING));
+				 {
+				   scanf("%d",(check->VALUE));
+				/*--------------For Code Generation-----------------------*/
+				   FILE *fp;
+				   fp = fopen("sim","a");
+				   fprintf(fp,"IN R%d\n",regcount);
+				   regcount++;
+				   fprintf(fp,"MOV [%d],R%d\n",check->BINDING,regcount-1);
+				   regcount--;
+				   fclose(fp);
+				/*--------------------------------------------------------*/	
+				    
+			         }
 			   }
 	  	  }	
 	  	else if(t->NODETYPE=='=')
@@ -667,22 +820,53 @@ int traverse(struct node* t)
 			      else
 			        { 
 			        if(t->P2 == NULL)
-			        	*(gcheck->BINDING) = traverse(t->P3);
+			         {  *(gcheck->VALUE) = traverse(t->P3);
+				    /*--------------For Code Generation-----------------------*/
+				   FILE *fp;
+				   fp = fopen("sim","a");
+				   fprintf(fp,"MOV [%d],R%d\n", gcheck->BINDING, regcount-1);
+				   regcount--;
+				   fclose(fp);
+				   /*--------------------------------------------------------*/			
+			         }
 			        else
 			         {
 			           int pos = traverse(t->P2);
 			           if(pos >= (gcheck->SIZE) || pos<0 )
 			           	yyerror("Exceeding size of array");
 			           else
-			             {
-			             	*(gcheck->BINDING + pos) = traverse(t->P3);
-			             }
-			           }   
+			           {	
+					    /*--------------For Code Generation-----------------------*/
+					   FILE *fp;
+					   fp = fopen("sim","a");
+					   fprintf(fp,"MOV R%d,%d\n", regcount, gcheck->BINDING);
+					   regcount++;
+					   fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
+					   regcount--;
+					   fclose(fp);
+					   /*---------------------------------------------------------*/
+					   *(gcheck->VALUE + pos) = traverse(t->P3);
+					   /*---------------------------------------------------------*/
+					   fp = fopen("sim","a");
+					   fprintf(fp,"MOV [R%d],R%d\n", regcount-2, regcount-1);
+					   regcount=regcount-2;
+					   fclose(fp);
+					   /*--------------------------------------------------------*/	
+					   }
+			          }   
 			         }
 			      }
 	  	 	else
 	  	 	 {
-	  	 	   *(check->BINDING) = traverse(t->P3);
+			    *(check->VALUE) = traverse(t->P3);
+			   /*--------------For Code Generation-----------------------*/
+			   FILE *fp;
+			   fp = fopen("sim","a");
+			   fprintf(fp,"MOV [%d],R%d\n", check->BINDING, regcount-1);
+			   regcount--;
+			   fclose(fp);
+			   /*--------------------------------------------------------*/	
+	  	 	  
 	  	 	 }
 	  	 }
 	  	else if(t->NODETYPE=='W')
@@ -709,19 +893,75 @@ int traverse(struct node* t)
 	  	  }	
 	  	else if(t->NODETYPE=='i')		
 	  	  {
+	  	     	  /*--------------For Code Generation-----------------------*/  	
+			   FILE *fp;
+			   fp = fopen("sim","a");
+			   fprintf(fp,"I%d:", ifcount);
+			   ipush(ifcount);
+			   ifcount++;
+			   fclose(fp);
+
+			   traverse(t->P1);
+	
+			   fp = fopen("sim","a");
+			   fprintf(fp,"JZ R%d,E%d\n", regcount-1,ifcount-1);
+			   regcount--;
+			   fclose(fp);
+	
+			   traverse(t->P2);
+	
+			   fp = fopen("sim","a");
+			   fprintf(fp,"JUMP EI%d\n", itop->value);
+			   fprintf(fp,"E%d:\n", itop->value);
+			   fclose(fp);
+			   traverse(t->P3);
+			   
+			   fp = fopen("sim","a");
+			   fprintf(fp,"EI%d:\n", ipop());
+			   fclose(fp);
+			   
+			   /*--------------------------------------------------------	
+	  	     	
+	  	     	
 	  	     	if(traverse(t->P1)&&t->P1->TYPE==BOOLEAN)
-	  	    	  traverse(t->P2); 
+	  	    	  {traverse(t->P2); 
+	  	    	   }
 	  	    	else 
+	  	    	  {
 	  	    	  traverse(t->P3);
-	  	  
+	  	  	  }
+	  	  	  */
 	  	  }
 	  	else if(t->NODETYPE=='w')		
 	  	  {
+	  	  	
+		  	   /*--------------For Code Generation-----------------------*/  	
+			   FILE *fp;
+			   fp = fopen("sim","a");
+			   fprintf(fp,"W%d:", whilecount);
+			   wpush(whilecount);
+			   whilecount++;
+			   fclose(fp);
+
+			   traverse(t->P1);
+	
+			   fp = fopen("sim","a");
+			   fprintf(fp,"JZ R%d,EW%d\n", regcount-1,whilecount-1);
+			   regcount--;
+			   fclose(fp);
+	
+			   traverse(t->P2);
+	
+			   fp = fopen("sim","a");
+			   fprintf(fp,"JUMP W%d\n", wtop->value);
+			   fprintf(fp,"EW%d:", wpop());
+			   fclose(fp);
+			   /*--------------------------------------------------------	 		   	  	
 	  	  	while(traverse(t->P1)&&t->P1->TYPE==BOOLEAN)
 	  	  	 {
 	  	  	  traverse(t->P2); 
-	  	  	 }
-	  	  
+	  	  	 }*/ 
+	
 	  	  }
 	  	else if(t->NODETYPE=='v') 		
 	  	 { 
@@ -729,16 +969,44 @@ int traverse(struct node* t)
 	  	 	if(t->P1==NULL)
 	  	 	{
 				if(t->LENTRY!=NULL)
-					res = *(t->LENTRY->BINDING);
+				 { 
+				   res = *(t->LENTRY->VALUE);
+			  	   /*--------------For Code Generation-----------------------*/
+				   FILE *fp;
+				   fp = fopen("sim","a");
+				   fprintf(fp,"MOV R%d,[%d]\n", regcount, t->LENTRY->BINDING);
+				   regcount++;
+				   fclose(fp);
+				   /*--------------------------------------------------------*/								
+				  }
 				else
-					res = *(t->GENTRY->BINDING);
+				 {
+				   res = *(t->GENTRY->VALUE);
+			  	   /*--------------For Code Generation-----------------------*/
+				   FILE *fp;
+				   fp = fopen("sim","a");
+				   fprintf(fp,"MOV R%d,[%d]\n", regcount, t->GENTRY->BINDING);
+				   regcount++;
+				   fclose(fp);
+				   /*--------------------------------------------------------*/		
+				 }
 			}
 			else
 			{
 			  int pos = traverse(t->P1);
 			  if(pos < t->GENTRY->SIZE || pos >= 0)
 			   {
-			      res = *(t->GENTRY->BINDING + pos);
+			      res = *(t->GENTRY->VALUE + pos);
+			      /*--------------For Code Generation-----------------------*/
+				   FILE *fp;
+				   fp = fopen("sim","a");
+				   fprintf(fp,"MOV R%d,%d\n", regcount, t->GENTRY->BINDING);
+				   regcount++;
+				   fprintf(fp,"ADD R%d,R%d\n", regcount-2,regcount-1);
+				   regcount--;
+				   fprintf(fp,"MOV R%d,[R%d]\n", regcount-1, regcount-1);    //Doubt??
+				   fclose(fp);
+			      /*--------------------------------------------------------*/	
 			   } 
 			  
 		         }
