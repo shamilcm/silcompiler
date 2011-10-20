@@ -149,18 +149,19 @@ struct node* Thead;
 pgm:		GDefblock  Mainblock    	{ 
 						traverse(Thead); 
 						FILE *fp;
-						fp=fopen("sim","a");
+						fp=fopen("sim.asm","a");
 						fprintf(fp,"HALT\n");
 						fclose(fp);	
-						exit(1); 
+						return(0);
 						}
 		|
 		Mainblock			{  
 						traverse(Thead); 
 						FILE *fp;
-						fp=fopen("sim","a");
+						fp=fopen("sim.asm","a");
 						fprintf(fp,"HALT\n");
 						fclose(fp);
+						return(0);
 						}
 		;
 
@@ -429,7 +430,7 @@ expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 int main(void)
   { 
 	FILE *fp;
-	fp = fopen("sim","w");
+	fp = fopen("sim.asm","w");
 	fprintf(fp,"START\n");
 	fclose(fp);
 	yyparse();
@@ -532,7 +533,7 @@ int traverse(struct node* t)
 	  	
 	  		/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
-			fp = fopen("sim","a");
+			fp = fopen("sim.asm","a");
 			fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
 			regcount--;
 			fclose(fp);
@@ -543,7 +544,7 @@ int traverse(struct node* t)
 	  	
 	  		/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
-			fp = fopen("sim","a");
+			fp = fopen("sim.asm","a");
 			fprintf(fp,"SUB R%d,R%d\n", regcount-2, regcount-1);
 			regcount--;
 			fclose(fp);
@@ -554,7 +555,7 @@ int traverse(struct node* t)
 	  	
 	  		/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
-			fp = fopen("sim","a");
+			fp = fopen("sim.asm","a");
 			fprintf(fp,"MUL R%d,R%d\n", regcount-2, regcount-1);
 			regcount--;
 			fclose(fp);
@@ -565,7 +566,7 @@ int traverse(struct node* t)
 	  	
 	  		/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
-			fp = fopen("sim","a");
+			fp = fopen("sim.asm","a");
 			fprintf(fp,"DIV R%d,R%d\n", regcount-2, regcount-1);
 			regcount--;
 			fclose(fp);
@@ -576,7 +577,7 @@ int traverse(struct node* t)
 	  	
 	  		/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
-			fp = fopen("sim","a");
+			fp = fopen("sim.asm","a");
 			fprintf(fp,"MOD R%d,R%d\n", regcount-2, regcount-1);
 			regcount--;
 			fclose(fp);
@@ -589,7 +590,7 @@ int traverse(struct node* t)
   			   res = F;
   			/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
-			fp = fopen("sim","a");
+			fp = fopen("sim.asm","a");
 			fprintf(fp,"GT R%d,R%d\n", regcount-2, regcount-1);
 			regcount--;
 			fclose(fp);
@@ -602,7 +603,7 @@ int traverse(struct node* t)
   			   res =  F;
   			/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
-			fp = fopen("sim","a");
+			fp = fopen("sim.asm","a");
 			fprintf(fp,"LT R%d,R%d\n", regcount-2, regcount-1);
 			regcount--;
 			fclose(fp);
@@ -615,7 +616,7 @@ int traverse(struct node* t)
   			   res = F;
   			/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
-			fp = fopen("sim","a");
+			fp = fopen("sim.asm","a");
 			fprintf(fp,"LE R%d,R%d\n", regcount-2, regcount-1);
 			regcount--;
 			fclose(fp);
@@ -628,7 +629,7 @@ int traverse(struct node* t)
   			   res = F;
   			/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
-			fp = fopen("sim","a");
+			fp = fopen("sim.asm","a");
 			fprintf(fp,"GE R%d,R%d\n", regcount-2, regcount-1);
 			regcount--;
 			fclose(fp);
@@ -641,7 +642,7 @@ int traverse(struct node* t)
   			   res = F;
   			/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
-			fp = fopen("sim","a");
+			fp = fopen("sim.asm","a");
 			fprintf(fp,"EQ R%d,R%d\n", regcount-2, regcount-1);
 			regcount--;
 			fclose(fp);
@@ -654,7 +655,7 @@ int traverse(struct node* t)
   			   res =  F;
   			/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
-			fp = fopen("sim","a");
+			fp = fopen("sim.asm","a");
 			fprintf(fp,"NE R%d,R%d\n", regcount-2, regcount-1);
 			regcount--;
 			fclose(fp);
@@ -675,7 +676,7 @@ int traverse(struct node* t)
 			          {
 			              if(gcheck->TYPE==BOOLEAN)	 				
 			             	{ char bval[6];
-			             	  scanf("%s", bval );
+			             	  //scanf("%s", bval );
 			             	  if(strcmp(bval,"TRUE")) 					
 			             	  {	
 						*(gcheck->VALUE) = 1;            	  
@@ -689,7 +690,7 @@ int traverse(struct node* t)
 			             	  }
 					/*--------------For Code Generation-----------------------*/
 					   FILE *fp;
-					   fp = fopen("sim","a");
+					   fp = fopen("sim.asm","a");
 					   fprintf(fp,"IN R%d\n",regcount);
 					   regcount++;
 					   fprintf(fp,"MOV [%d],R%d\n",gcheck->BINDING,regcount-1);
@@ -699,10 +700,10 @@ int traverse(struct node* t)
 			             	}
 			             else							
 			              {	
-			                scanf("%d",gcheck->VALUE);
+			                //scanf("%d",gcheck->VALUE);
 					/*--------------For Code Generation-----------------------*/
 					   FILE *fp;
-					   fp = fopen("sim","a");
+					   fp = fopen("sim.asm","a");
 					   fprintf(fp,"IN R%d\n",regcount);
 					   regcount++;
 					   fprintf(fp,"MOV [%d],R%d\n",gcheck->BINDING,regcount-1);
@@ -721,7 +722,7 @@ int traverse(struct node* t)
 			             {
 			             	if(gcheck->TYPE==BOOLEAN) 
 			             	{ char bval[6];
-			             	  scanf("%s", bval );
+			             	  //scanf("%s", bval );
 			             	  if(strcmp(bval,"TRUE")==0) 
 			             	  {	*(gcheck->VALUE+pos) = 1;
 			             	  }
@@ -733,7 +734,7 @@ int traverse(struct node* t)
 				            }	   
 					   /*--------------For Code Generation-----------------------*/
 					   FILE *fp;
-					   fp = fopen("sim","a");
+					   fp = fopen("sim.asm","a");
 					   fprintf(fp,"MOV R%d,%d\n", regcount, gcheck->BINDING);
 					   regcount++;
 					   fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
@@ -748,10 +749,10 @@ int traverse(struct node* t)
 				        else
 				     	{
 				     	   
-				     	   scanf("%d",(gcheck->VALUE+pos));
+				     	   //scanf("%d",(gcheck->VALUE+pos));
 					    /*--------------For Code Generation-----------------------*/
 					   FILE *fp;
-					   fp = fopen("sim","a");
+					   fp = fopen("sim.asm","a");
 					   fprintf(fp,"MOV R%d,%d\n", regcount, gcheck->BINDING);
 					   regcount++;
 					   fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
@@ -771,7 +772,7 @@ int traverse(struct node* t)
 			   else
 			   {     if(check->TYPE==BOOLEAN) 
 			             	{ char bval[6];
-			             	  scanf("%s", bval );
+			             	  //scanf("%s", bval );
 			             	  if(strcmp(bval,"TRUE")==0) 
 			             	  {	*(check->VALUE) = 1;			             	  
 			             	   }
@@ -784,7 +785,7 @@ int traverse(struct node* t)
 					    }
 					/*--------------For Code Generation-----------------------*/
 					   FILE *fp;
-					   fp = fopen("sim","a");
+					   fp = fopen("sim.asm","a");
 					   fprintf(fp,"IN R%d\n",regcount);
 					   regcount++;
 					   fprintf(fp,"MOV [%d],R%d\n",check->BINDING,regcount-1);
@@ -794,10 +795,10 @@ int traverse(struct node* t)
 			             	}
 			      	else
 				 {
-				   scanf("%d",(check->VALUE));
+				   //scanf("%d",(check->VALUE));
 				/*--------------For Code Generation-----------------------*/
 				   FILE *fp;
-				   fp = fopen("sim","a");
+				   fp = fopen("sim.asm","a");
 				   fprintf(fp,"IN R%d\n",regcount);
 				   regcount++;
 				   fprintf(fp,"MOV [%d],R%d\n",check->BINDING,regcount-1);
@@ -823,7 +824,7 @@ int traverse(struct node* t)
 			         {  *(gcheck->VALUE) = traverse(t->P3);
 				    /*--------------For Code Generation-----------------------*/
 				   FILE *fp;
-				   fp = fopen("sim","a");
+				   fp = fopen("sim.asm","a");
 				   fprintf(fp,"MOV [%d],R%d\n", gcheck->BINDING, regcount-1);
 				   regcount--;
 				   fclose(fp);
@@ -838,7 +839,7 @@ int traverse(struct node* t)
 			           {	
 					    /*--------------For Code Generation-----------------------*/
 					   FILE *fp;
-					   fp = fopen("sim","a");
+					   fp = fopen("sim.asm","a");
 					   fprintf(fp,"MOV R%d,%d\n", regcount, gcheck->BINDING);
 					   regcount++;
 					   fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
@@ -847,7 +848,7 @@ int traverse(struct node* t)
 					   /*---------------------------------------------------------*/
 					   *(gcheck->VALUE + pos) = traverse(t->P3);
 					   /*---------------------------------------------------------*/
-					   fp = fopen("sim","a");
+					   fp = fopen("sim.asm","a");
 					   fprintf(fp,"MOV [R%d],R%d\n", regcount-2, regcount-1);
 					   regcount=regcount-2;
 					   fclose(fp);
@@ -861,7 +862,7 @@ int traverse(struct node* t)
 			    *(check->VALUE) = traverse(t->P3);
 			   /*--------------For Code Generation-----------------------*/
 			   FILE *fp;
-			   fp = fopen("sim","a");
+			   fp = fopen("sim.asm","a");
 			   fprintf(fp,"MOV [%d],R%d\n", check->BINDING, regcount-1);
 			   regcount--;
 			   fclose(fp);
@@ -872,20 +873,21 @@ int traverse(struct node* t)
 	  	else if(t->NODETYPE=='W')
 	  	  {
 	  	   	if(t->P1->TYPE==INTEGER)
-	  	   	{  printf("%d\n",traverse(t->P1));
+	  	   	{ //printf("%d\n",traverse(t->P1));
+	  	   	   traverse(t->P1);
 	  	   	}
 	  	   	else
 	  	   	 {
-	  	   	   if(traverse(t->P1)==1)
-	  	   	    {	printf("TRUE\n");
+	  	   	  /* if(traverse(t->P1)==1)
+	  	   	    {	//printf("TRUE\n");
 	  	   	        
 	  	   	     }
 	  	   	   else 
-	  	   	        printf("FALSE\n");
+	  	   	       //printf("FALSE\n");*/
 	  	   	 }
 		  	   /*--------------For Code Generation-----------------------*/
 			   FILE *fp;
-			   fp = fopen("sim","a");
+			   fp = fopen("sim.asm","a");
 			   fprintf(fp,"OUT R%d\n", regcount-1);
 			   regcount--;
 			   fclose(fp);
@@ -895,7 +897,7 @@ int traverse(struct node* t)
 	  	  {
 	  	     	  /*--------------For Code Generation-----------------------*/  	
 			   FILE *fp;
-			   fp = fopen("sim","a");
+			   fp = fopen("sim.asm","a");
 			   fprintf(fp,"I%d:", ifcount);
 			   ipush(ifcount);
 			   ifcount++;
@@ -903,20 +905,20 @@ int traverse(struct node* t)
 
 			   traverse(t->P1);
 	
-			   fp = fopen("sim","a");
+			   fp = fopen("sim.asm","a");
 			   fprintf(fp,"JZ R%d,E%d\n", regcount-1,ifcount-1);
 			   regcount--;
 			   fclose(fp);
 	
 			   traverse(t->P2);
 	
-			   fp = fopen("sim","a");
-			   fprintf(fp,"JUMP EI%d\n", itop->value);
+			   fp = fopen("sim.asm","a");
+			   fprintf(fp,"JMP EI%d\n", itop->value);
 			   fprintf(fp,"E%d:\n", itop->value);
 			   fclose(fp);
 			   traverse(t->P3);
 			   
-			   fp = fopen("sim","a");
+			   fp = fopen("sim.asm","a");
 			   fprintf(fp,"EI%d:\n", ipop());
 			   fclose(fp);
 			   
@@ -937,7 +939,7 @@ int traverse(struct node* t)
 	  	  	
 		  	   /*--------------For Code Generation-----------------------*/  	
 			   FILE *fp;
-			   fp = fopen("sim","a");
+			   fp = fopen("sim.asm","a");
 			   fprintf(fp,"W%d:", whilecount);
 			   wpush(whilecount);
 			   whilecount++;
@@ -945,15 +947,15 @@ int traverse(struct node* t)
 
 			   traverse(t->P1);
 	
-			   fp = fopen("sim","a");
+			   fp = fopen("sim.asm","a");
 			   fprintf(fp,"JZ R%d,EW%d\n", regcount-1,whilecount-1);
 			   regcount--;
 			   fclose(fp);
 	
 			   traverse(t->P2);
 	
-			   fp = fopen("sim","a");
-			   fprintf(fp,"JUMP W%d\n", wtop->value);
+			   fp = fopen("sim.asm","a");
+			   fprintf(fp,"JMP W%d\n", wtop->value);
 			   fprintf(fp,"EW%d:", wpop());
 			   fclose(fp);
 			   /*--------------------------------------------------------	 		   	  	
@@ -973,7 +975,7 @@ int traverse(struct node* t)
 				   res = *(t->LENTRY->VALUE);
 			  	   /*--------------For Code Generation-----------------------*/
 				   FILE *fp;
-				   fp = fopen("sim","a");
+				   fp = fopen("sim.asm","a");
 				   fprintf(fp,"MOV R%d,[%d]\n", regcount, t->LENTRY->BINDING);
 				   regcount++;
 				   fclose(fp);
@@ -984,7 +986,7 @@ int traverse(struct node* t)
 				   res = *(t->GENTRY->VALUE);
 			  	   /*--------------For Code Generation-----------------------*/
 				   FILE *fp;
-				   fp = fopen("sim","a");
+				   fp = fopen("sim.asm","a");
 				   fprintf(fp,"MOV R%d,[%d]\n", regcount, t->GENTRY->BINDING);
 				   regcount++;
 				   fclose(fp);
@@ -999,7 +1001,7 @@ int traverse(struct node* t)
 			      res = *(t->GENTRY->VALUE + pos);
 			      /*--------------For Code Generation-----------------------*/
 				   FILE *fp;
-				   fp = fopen("sim","a");
+				   fp = fopen("sim.asm","a");
 				   fprintf(fp,"MOV R%d,%d\n", regcount, t->GENTRY->BINDING);
 				   regcount++;
 				   fprintf(fp,"ADD R%d,R%d\n", regcount-2,regcount-1);
@@ -1017,7 +1019,7 @@ int traverse(struct node* t)
 	  	 	res = t->VALUE;
 			/*--------------For Code Generation-----------------------*/
 	  	 	FILE *fp;
-			fp = fopen("sim","a");
+			fp = fopen("sim.asm","a");
 			fprintf(fp,"MOV R%d,%d\n", regcount, res);
 			regcount++;
 			fclose(fp);
