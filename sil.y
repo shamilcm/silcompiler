@@ -135,8 +135,8 @@ struct node* Thead;
 
 %token <n> NUM BNUM ID WRITE READ  RELOP AND OR NOT
 %token IF ENDIF WHILE DO ENDWHILE BEG END BOOL INT DECL ENDDECL MAIN THEN ELSE RETURN
+%right NOT
 %left AND OR
-
 %left RELOP
 %left '-' '+'
 %left '*' '/' '%'
@@ -390,6 +390,30 @@ expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 						  
 						}
 		|
+		expr AND expr			{
+						  if( $1->TYPE == $3->TYPE && $1->TYPE == BOOLEAN )
+						   	$$ = makeTree($2, $1, $3, NULL);
+						  else
+						  	yyerror("Type Mismatch for AND Operator");
+						  
+						}
+		|
+		expr OR expr			{
+						  if( $1->TYPE == $3->TYPE && $1->TYPE == BOOLEAN )
+						   	$$ = makeTree($2, $1, $3, NULL);
+						  else
+						  	yyerror("Type Mismatch for OR Operator");
+						  
+						}
+		|
+		NOT expr			{
+						  if( $2->TYPE== BOOLEAN )
+						   	$$ = makeTree($1, NULL, $2, NULL);
+						  else
+						  	yyerror("Type Mismatch for Boolean Operator");
+						  
+						}
+		|					
 		ID				{
 						  $$ = $1;
 						  struct Lsymbol* temp = Llookup($$->NAME);
@@ -649,6 +673,43 @@ int traverse(struct node* t)
 	  		FILE *fp;
 			fp = fopen("sim.asm","a");
 			fprintf(fp,"EQ R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+  		}
+  		else if(t->NODETYPE == 'a')
+  		{	traverse(t->P1);
+  			traverse(t->P2);
+
+  			/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim.asm","a");
+			fprintf(fp,"MUL R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+  		}
+  	  	else if(t->NODETYPE == 'o')
+  		{	
+  			traverse(t->P1);
+  			traverse(t->P2);
+  			/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim.asm","a");
+			fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
+			regcount--;
+			fclose(fp);
+			/*--------------------------------------------------------*/
+  		}
+  		else if(t->NODETYPE == 'n')
+  		{	traverse(t->P2);
+    			/*--------------For Code Generation-----------------------*/
+	  		FILE *fp;
+			fp = fopen("sim.asm","a");
+			fprintf(fp,"MOV R%d,1\n", regcount);
+			regcount++;
+			fprintf(fp,"SUB R%d,R%d\n", regcount-1, regcount-2);
+			fprintf(fp,"MOV R%d,%d\n", regcount-2,regcount-1 );
 			regcount--;
 			fclose(fp);
 			/*--------------------------------------------------------*/
