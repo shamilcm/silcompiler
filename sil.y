@@ -133,12 +133,14 @@ struct node* Thead;
 
 }
 
-%token <n> NUM BNUM ID WRITE READ  RELOP
-%token IF ENDIF WHILE DO ENDWHILE BEG END BOOL INT DECL ENDDECL MAIN THEN ELSE
+%token <n> NUM BNUM ID WRITE READ  RELOP AND OR NOT
+%token IF ENDIF WHILE DO ENDWHILE BEG END BOOL INT DECL ENDDECL MAIN THEN ELSE RETURN
+%left AND OR
+
 %left RELOP
 %left '-' '+'
 %left '*' '/' '%'
-%left NEG   
+%right NEG   
 %type <n>  expr  stmt Stmtlist
 %type <n> '+' '-' '*' '/' '%' '='
 
@@ -371,8 +373,11 @@ expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 		|
 		'('expr')'			{ $$=$2;}
 		|
-		'-' expr  %prec NEG 		{ if( $1->TYPE == $2->TYPE)
-						   	$$ = makeTree($1, NULL, $2, NULL);
+		'-' expr  %prec NEG 		{ 
+						  if( $1->TYPE == $2->TYPE)
+						   {	struct node *temp = makeNode1(INTEGER, con, NULL, 0);
+						   	$$ = makeTree($1, temp, $2, NULL);
+						   }	
 						  else
 						  	yyerror("Type Mismatch");
 						  }

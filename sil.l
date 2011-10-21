@@ -49,11 +49,22 @@ extern YYSTYPE yylval;
 "while"			{ 	return WHILE;  }
 "do"			{ 	return DO;     }
 "endwhile"		{ 	return ENDWHILE;  }
+"return"		{	return RETURN; 	}
 "TRUE"			{	yylval.n = makeNode(BOOLEAN, con, NULL, 1);
 				return BNUM;		}
 "FALSE"			{	yylval.n = makeNode(BOOLEAN, con, NULL, 0);
 				return BNUM;
 			}
+"AND"			{	yylval.n = makeNode(BOOLEAN, 'a', NULL, 0);
+				return AND;	
+			}
+"OR"			{	yylval.n = makeNode(BOOLEAN, 'o', NULL, 0);
+				return OR;
+			}
+"NOT"			{	yylval.n = makeNode(BOOLEAN, 'n', NULL, 0);
+				return NOT;
+			}									
+			
 
 [0-9]+			{     	
 				yylval.n = makeNode(INTEGER, con, NULL, atoi(yytext));
