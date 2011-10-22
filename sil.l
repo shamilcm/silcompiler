@@ -105,10 +105,9 @@ extern YYSTYPE yylval;
 				return RELOP;
 			}
 
-
 [ \t\n]+		{
       			}	 
-[();,\[\]{}]		{	return *yytext;
+[();,\[\]{}&]		{	return *yytext;
 			}
 			
 . 			{ 	return(0);		  

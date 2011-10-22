@@ -25,9 +25,10 @@
 #define w 'W'
 
 int regcount = 0;
-int memcount = 100;
+int memcount = 0;
 int ifcount = 0;
 int whilecount = 0;
+int lbcount = 0;
 
 struct istack
 {
@@ -78,8 +79,9 @@ int wpop()
 
 struct ArgStruct{
 	char* ARGNAME;
-	char* ARGTYPE;
-	struct ArgStruct *NEXTARG;
+	int ARGTYPE;
+	int PASSTYPE;	//0 Call By Value and 1 Call By Reference
+	struct ArgStruct *ARGNEXT;
 };
 
 struct Gsymbol {
@@ -112,6 +114,17 @@ struct node* makeNode1(int type, char nodetype, char* name, int value);
 int traverse(struct node* t);
 
 int typeval;   //For getting type of variable
+int Atypeval;	//For getting type of arguments
+int Rtypeval;	// For getting return type
+
+struct ArgStruct* headArg = NULL;
+struct ArgStruct* newArg;
+
+void makeArglist(struct ArgStruct* head, struct ArgStruct* arg);
+void printArg(struct ArgStruct* head);
+int fnDefCheck(int type, char* name, struct ArgStruct* arg);
+int argDefCheck(struct ArgStruct* arg1, struct ArgStruct* arg2);
+
 
 struct node* Thead;
 
@@ -148,30 +161,25 @@ struct node* Thead;
   
  
 %%
-pgm:		GDefblock  Mainblock    	{ 
-						traverse(Thead); 
-						FILE *fp;
-						fp=fopen("sim.asm","a");
-						fprintf(fp,"HALT\n");
-						fclose(fp);	
+pgm:		GDefblock FDefblock Mainblock    	{ 
 						return(0);
 						}
 		|
 		Mainblock			{  
-						traverse(Thead); 
-						FILE *fp;
-						fp=fopen("sim.asm","a");
-						fprintf(fp,"HALT\n");
-						fclose(fp);
 						return(0);
 						}
 		;
 
-GDefblock:	DECL GDeflist ENDDECL		{		}	
+GDefblock:	DECL GDeflist ENDDECL		{
+							 FILE *fp;
+							 fp = fopen("sim.asm","a");
+							 fprintf(fp,"MOV SP,%d\n",memcount);
+							 fclose(fp);						
+							 memcount = 1;		
+						}	
 		;
 
-GDeflist:	   	
-		GDecl				{ }
+GDeflist:	 GDecl				{ }
 		|
 		GDeflist GDecl			{ }
 		;
@@ -184,14 +192,93 @@ GIdlist:	GIdlist ',' GId			{ }
 		GId
 		;
 
-GId:		ID					{  							
-								Ginstall($1->NAME, typeval, 1, NULL); 
-							}
+GId:		ID				{  							
+							Ginstall($1->NAME, typeval, 1, NULL); 
+						}
 		|
-		ID'['NUM']'				{       Ginstall($1->NAME, typeval, $3->VALUE, NULL);  }
+		ID'['NUM']'			{       Ginstall($1->NAME, typeval, $3->VALUE, NULL);  
+						}
+		|
+		ID '('Arglist')'		{
+							Ginstall($1->NAME, typeval, 0, headArg);
+							headArg=NULL;
+						}
+		;
+Arglist:	Arglist ';' Arg			{
+							 
+						}
+		|
+		Arg				{
+									
+						}
+		;
+Arg:		ArgType ArgIdlist 		{
+							 	   
+						}
+		;		
+ArgIdlist:	ArgIdlist ',' ArgId		{
+							 makeArglist(headArg, newArg);	
+						}
+						
+		|
+		ArgId				{
+							 makeArglist(headArg, newArg);	
+						}
 		;
 
-Mainblock:	INT MAIN '('')'  Fblock 	{   }
+ArgId:		ID				{	newArg = malloc(sizeof(struct ArgStruct));
+							newArg->ARGNAME = $1->NAME;
+							newArg->ARGTYPE = Atypeval;
+							newArg->PASSTYPE = 0;
+							newArg->ARGNEXT = NULL;
+						}
+		|
+		'&'ID				{
+							newArg = malloc(sizeof(struct ArgStruct));
+							newArg->ARGNAME = $2->NAME;
+							newArg->ARGTYPE = Atypeval;
+							newArg->PASSTYPE = 1;
+							newArg->ARGNEXT = NULL;
+						}
+		;
+ArgType:	INT					{    Atypeval=INTEGER; }
+		|
+		BOOL					{    Atypeval=BOOLEAN;	}
+		;		
+
+FDefblock:	
+		|
+		FDefblock FDef
+		;
+
+FDef:		RType	ID '(' Arglist ')' Fblock	{
+							 //struct Gsymbol* x = Glookup($2->NAME);
+							 //if(x!=NULL) printf("Check");
+							 fnDefCheck(Rtypeval, $2->NAME, headArg);
+							 FILE *fp;
+							 fp = fopen("sim.asm","a");
+							 fprintf(fp,"fn%d:  //Function Name: %s\n", lbcount, $2->NAME);
+							 lbcount++;
+							 fclose(fp);
+							 headArg = NULL;
+							 traverse(Thead); 
+							 memcount=1;
+							 Lhead = NULL;
+							 Thead=NULL;								
+							}
+		;
+RType:		INT					{    Rtypeval=INTEGER; }
+		|
+		BOOL					{    Rtypeval=BOOLEAN;	}
+		;	
+Mainblock:	INT MAIN '('')'  Fblock 	{  	FILE *fp;
+							fp = fopen("sim.asm","a");
+							fprintf(fp,"main: ");
+							fclose(fp);
+							traverse(Thead); 
+							Lhead = NULL;
+							Thead=NULL;
+						}
 		;
 		
 Fblock:		 LDefblock Stmtblock      	 {  }
@@ -335,10 +422,14 @@ stmt:		ID '=' expr				{
 							   $$ = makeTree($$, $2, $4, NULL);
 							}
 		|
-		WHILE expr DO Stmtlist';' ENDWHILE		{	$$ = makeNode1(VOID, 'w', NULL, 0);
-								$$ = makeTree($$, $2, $4, NULL);
-		
-							}		
+		WHILE expr DO Stmtlist';' ENDWHILE	{	
+							$$ = makeNode1(VOID, 'w', NULL, 0);
+							$$ = makeTree($$, $2, $4, NULL);
+							}
+		|						
+		RETURN					{
+							$$ = makeNode1(VOID,'x',NULL,0);
+							}	
 		;
 
 expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
@@ -461,8 +552,14 @@ int main(void)
 	FILE *fp;
 	fp = fopen("sim.asm","w");
 	fprintf(fp,"START\n");
+	fprintf(fp,"MOV SP, 0\n");
+	fprintf(fp,"MOV BP, 0\n");
+	fprintf(fp,"JMP main\n");
 	fclose(fp);
 	yyparse();
+	fp=fopen("sim.asm","a");
+	fprintf(fp,"HALT\n");
+	fclose(fp);		
     	return 0;
 	
 	}
@@ -483,6 +580,7 @@ struct node* makeNode1(int type, char nodetype, char* name, int value){
 		return res;
 }
 
+
 struct node* makeTree( struct node* parent, struct node* P1, struct node* P2, struct node* P3)
 { 
  	struct node* res = parent;
@@ -492,7 +590,43 @@ struct node* makeTree( struct node* parent, struct node* P1, struct node* P2, st
 	Thead = res;
 	return res;
 }
+
+void makeArglist(struct ArgStruct* head, struct ArgStruct* arg)
+{
 	
+	if(headArg == NULL)
+	 {
+	 	headArg = arg;
+	}
+	else
+	{ 
+		struct ArgStruct* i = head; 
+		while(i->ARGNEXT!=NULL)
+		{
+			if(strcmp(i->ARGNAME,arg->ARGNAME)==0)
+			 {
+			 	yyerror("Multiple Declaration of Arguments");
+			 }
+			i = i->ARGNEXT;
+		}
+		if(strcmp(i->ARGNAME,arg->ARGNAME)==0)
+		 {
+		 	yyerror("Multiple Declaration of Arguments");
+		 }
+		i->ARGNEXT = arg;
+
+	}
+}
+
+void printArg(struct ArgStruct* head)
+{
+	struct ArgStruct* i = head;
+	while(i!=NULL)
+	{
+		printf("%d %s - ",i->ARGTYPE,i->ARGNAME);
+		i=i->ARGNEXT;
+	}
+}	
 void Ginstall(char* NAME, int TYPE, int SIZE, struct ArgStruct* ARGLIST)
  {
 	   struct Gsymbol* res = malloc(sizeof(struct Gsymbol));
@@ -502,12 +636,75 @@ void Ginstall(char* NAME, int TYPE, int SIZE, struct ArgStruct* ARGLIST)
 	   res->ARGLIST = ARGLIST; 
 	   res->VALUE = malloc(sizeof(int)*SIZE);
 	   /*-----------Code Generation-------------------*/
-	   res->BINDING = memcount;
-	   memcount = memcount+SIZE;
+	   if(SIZE!=0)
+	   {	   res->BINDING = memcount;
+		   memcount = memcount+SIZE;
+	   }
+	   
 	   /*---------------------------------------------*/
 	   res->NEXT = Ghead;
 	   Ghead = res;
  }
+int fnDefCheck(int type, char* name, struct ArgStruct* arg)
+{
+	   struct Gsymbol* res;
+	   res = Ghead;
+	   while(res != NULL)
+	    {
+		      if(strcmp(res->NAME, name) == 0 && res->SIZE==0)
+			{
+				 if(res->TYPE == type && argDefCheck(res->ARGLIST, arg))
+				 {
+
+				 	res->BINDING = lbcount;
+				 	return res->BINDING;
+				 }
+				 else
+				 {
+					yyerror("Incorrect Function Definition");
+					return -1;
+			      		
+			      	 }
+		      	}
+		      res = res->NEXT;
+	     }
+	  yyerror("Function Undeclared");
+
+} 
+
+int argDefCheck(struct ArgStruct* arg1, struct ArgStruct* arg2)
+{
+	struct ArgStruct* i = arg1;
+	struct ArgStruct* j = arg2;
+	while(i!=NULL)
+	{
+		if(j==NULL)
+		{
+		 
+		 	return 0;
+			
+		}
+		else
+		{
+			if(strcmp(j->ARGNAME,i->ARGNAME)!=0 || i->ARGTYPE!=j->ARGTYPE )
+			{
+			return 0;
+			} 
+			else
+			i=i->ARGNEXT;
+			j=j->ARGNEXT;
+		}
+	}
+	if(j==NULL) 
+	{
+	 	return 1;
+	}
+	else 
+	{	
+	 	return 0;
+		
+	}
+}
 
 void Linstall(char* NAME, int TYPE)
  {
@@ -581,7 +778,6 @@ int traverse(struct node* t)
 	  	}
 	  	else if(t->NODETYPE == '*')
 	  	{	res = traverse(t->P1)*traverse(t->P2);
-	  	
 	  		/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
 			fp = fopen("sim.asm","a");
@@ -592,7 +788,6 @@ int traverse(struct node* t)
 	  	}
 	  	else if(t->NODETYPE == '/')
 	  	{	res = traverse(t->P1)/traverse(t->P2);
-	  	
 	  		/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
 			fp = fopen("sim.asm","a");
@@ -603,7 +798,6 @@ int traverse(struct node* t)
 	  	}
 	  	else if(t->NODETYPE == '%')
 	  	{	res = traverse(t->P1)/traverse(t->P2);
-	  	
 	  		/*--------------For Code Generation-----------------------*/
 	  		FILE *fp;
 			fp = fopen("sim.asm","a");
@@ -743,7 +937,7 @@ int traverse(struct node* t)
 			              if(gcheck->TYPE==BOOLEAN)	 				
 			             	{ char bval[6];
 			             	  //scanf("%s", bval );
-			             	  if(strcmp(bval,"TRUE")) 					
+			             	/*  if(strcmp(bval,"TRUE")) 					
 			             	  {	
 						*(gcheck->VALUE) = 1;            	  
 			             	  }
@@ -753,7 +947,7 @@ int traverse(struct node* t)
 			             	  }
 			             	  else
 			             	  {      yyerror("Unrecognized constant");
-			             	  }
+			             	  }*/
 					/*--------------For Code Generation-----------------------*/
 					   FILE *fp;
 					   fp = fopen("sim.asm","a");
@@ -789,7 +983,7 @@ int traverse(struct node* t)
 			             	if(gcheck->TYPE==BOOLEAN) 
 			             	{ char bval[6];
 			             	  //scanf("%s", bval );
-			             	  if(strcmp(bval,"TRUE")==0) 
+			             	  /*if(strcmp(bval,"TRUE")==0) 
 			             	  {	*(gcheck->VALUE+pos) = 1;
 			             	  }
 			             	  else if(strcmp(bval,"FALSE")==0) 
@@ -797,7 +991,7 @@ int traverse(struct node* t)
 			             	   }
 			             	  else
 			             	   {  yyerror("Unrecognized constant");
-				            }	   
+				            }	   */
 					   /*--------------For Code Generation-----------------------*/
 					   FILE *fp;
 					   fp = fopen("sim.asm","a");
@@ -839,7 +1033,7 @@ int traverse(struct node* t)
 			   {     if(check->TYPE==BOOLEAN) 
 			             	{ char bval[6];
 			             	  //scanf("%s", bval );
-			             	  if(strcmp(bval,"TRUE")==0) 
+			             	 /* if(strcmp(bval,"TRUE")==0) 
 			             	  {	*(check->VALUE) = 1;			             	  
 			             	   }
 			             	  else if(strcmp(bval,"FALSE")==0)
@@ -848,7 +1042,7 @@ int traverse(struct node* t)
 			             	  }
 			             	  else
 			             	   {     yyerror("Unrecognized constant");
-					    }
+					    }*/
 					/*--------------For Code Generation-----------------------*/
 					   FILE *fp;
 					   fp = fopen("sim.asm","a");
@@ -1092,6 +1286,16 @@ int traverse(struct node* t)
 			/*--------------------------------------------------------*/
 	  	 	
 	  	 }
+		else if(t->NODETYPE=='x')
+		{
+			/*--------------For Code Generation-----------------------*/
+	  	 	FILE *fp;
+			fp = fopen("sim.asm","a");
+			fprintf(fp,"RET\n");
+			fclose(fp);
+			/*--------------------------------------------------------*/
+	  	 	
+	  	 }
 	  	else if(t->NODETYPE=='s')
 	  	 {
 	  	 	traverse(t->P1);
@@ -1111,7 +1315,8 @@ int traverse(struct node* t)
 
 int yyerror (char *msg) 
    {
- 	return fprintf (stderr, "YACC: %s\n", msg);
+ 	fprintf (stderr, "YACC: %s\n", msg);
+ 	exit(0);
    }
 
 
