@@ -125,6 +125,7 @@ void printArg(struct ArgStruct* head);
 int fnDefCheck(int type, char* name, struct ArgStruct* arg);
 int argDefCheck(struct ArgStruct* arg1, struct ArgStruct* arg2);
 int argInstall(struct ArgStruct* head);
+int pushArg(struct node* x, struct ArgStruct* args);
 
 struct node* Thead;
 
@@ -154,7 +155,7 @@ struct node* Thead;
 %left '-' '+'
 %left '*' '/' '%'
 %right NEG   
-%type <n>  expr  stmt Stmtlist Returnstmt
+%type <n>  expr  stmt Stmtlist Returnstmt exprlist
 %type <n> '+' '-' '*' '/' '%' '='
 
 
@@ -178,6 +179,8 @@ GDefblock:	DECL GDeflist ENDDECL		{
 							 fclose(fp);						
 							 memcount = 1;	
 							fp=fopen("sim.asm","a");
+							fprintf(fp,"PUSH R0\n");
+							fprintf(fp,"PUSH R0\n");
 							fprintf(fp,"JMP main\n");
 							fclose(fp);		
 						}	
@@ -285,7 +288,13 @@ FDef:		RType	ID '(' FArgdef ')' Fblock	{
 							 fprintf(fp,"MOV BP,SP\n");
 							 fprintf(fp,"MOV R%d,%d\n",regcount,memcount-1);
 							 regcount++;
-							 fprintf(fp,"ADD SP,R%d\n",regcount-1);
+							 fprintf(fp,"MOV R%d,%d\n",regcount,memcount-1);
+							 regcount++;
+							 fprintf(fp,"MOV R%d,SP\n",regcount);
+							 regcount++;
+							 fprintf(fp,"ADD R%d,R%d\n",regcount-2,regcount-1);
+							 regcount--;
+							 fprintf(fp,"MOV SP,R%d\n",regcount-1);
 							 regcount--;
 							 fclose(fp);
 							 headArg=NULL;
@@ -466,11 +475,7 @@ stmt:		ID '=' expr				{
 		WHILE expr DO Stmtlist';' ENDWHILE	{	
 							$$ = makeNode1(VOID, 'w', NULL, 0);
 							$$ = makeTree($$, $2, $4, NULL);
-							}
-		|						
-		RETURN					{
-
-							}	
+							}							
 		;
 
 expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
@@ -545,7 +550,18 @@ expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 						  	yyerror("Type Mismatch for Boolean Operator");
 						  
 						}
-
+		|	
+		ID '('exprlist')'		{
+						      $$ = makeNode1(1,'f',$1->NAME,0);
+						      struct Gsymbol* gtemp = Glookup($$->NAME);
+						      if(gtemp==NULL || gtemp->SIZE!=0) yyerror("Undefined Function");
+						      else
+						       {
+						       	 $$->GENTRY = gtemp;
+						     	 $$->TYPE = gtemp->TYPE;
+						     	 $$->P1 = $3;
+						       }
+						}
 		|				
 		ID				{
 						  $$ = $1;
@@ -586,7 +602,23 @@ expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 						$$=$1; 
 						$$->TYPE = BOOLEAN;
 						}
-					
+		;
+exprlist:					{
+						$$=NULL;
+						}					
+		|
+		exprlist ',' expr		{
+						$1->P3 = $3;
+						printf("%d %c %d",$3->P1->VALUE,$3->NODETYPE,$3->P2->VALUE);
+						$$=$1;						 				 						
+						}
+		|
+		expr 				{
+						 printf("%d %c %d",$1->P1->VALUE,$1->NODETYPE, $1->P2->VALUE);
+						 $$=$1;
+						}
+		;
+
 %%
 
 int main(void)
@@ -759,6 +791,60 @@ int argInstall(struct ArgStruct* head)
 		i=i->ARGNEXT;
 	}
 	memcount=1;
+}
+
+int pushArg(struct node *x, struct ArgStruct *args)
+{
+	FILE *fp;
+	int res=0;
+	if(x==NULL)
+	{
+		if(args==NULL)
+		{
+			return 0;
+		}
+		else
+		{
+		 	return 0;
+		 	yyerror("Arguments Mismatch");
+		}
+	}
+	else
+	{
+		if(args==NULL)
+		{
+			return 0;
+			yyerror("Arguments Mismatch");
+		}
+		else
+		{
+		  	if(x->TYPE==args->ARGTYPE )
+		  	{
+				if(args->PASSTYPE==1)
+				{
+				  if(x->P3->NODETYPE!='v')
+				  {
+				  	return 0;
+				  	yyerror("Pass By Reference Error");
+				  }
+				}
+				
+				res = pushArg(x->P3,args->ARGNEXT) + 1;
+				traverse(x);
+				fp = fopen("sim.asm","a");
+		  		fprintf(fp,"PUSH R%d\n",regcount-1);
+		  		regcount--;
+		  		fclose(fp);
+		  		return res;
+		  	}
+		  	else
+		  	{
+		  		yyerror("Arguments mismatch");
+			}
+			
+		}
+	
+	}
 }
 
 void Linstall(char* NAME, int TYPE)
@@ -1259,6 +1345,86 @@ int traverse(struct node* t)
 		         }
 	  	 	
 	  	 }
+	  	else if(t->NODETYPE=='f')
+	  	 {
+	  	 	
+			/*--------------For Code Generation-----------------------*/
+	  	 	FILE *fp;
+			int regno = regcount-1;
+			fp = fopen("sim.asm","a");
+			while(regcount>0)
+			{
+	  		fprintf(fp,"PUSH R%d //Pushing Registers\n ",regcount-1);
+	  		regcount--;					
+			}
+			fclose(fp);
+			int argnum = pushArg(t->P1,t->GENTRY->ARGLIST);
+	 		fp = fopen("sim.asm","a");
+			fprintf(fp,"CALL fn%d //Function Name %s\n", t->GENTRY->BINDING, t->NAME);
+			fprintf(fp,"POP R%d\n", regno+1);
+			fclose(fp);
+			regcount=regno+2;
+			struct ArgStruct* y = t->GENTRY->ARGLIST;
+			struct node *x = t->P1;
+			while(x!=NULL)
+			{ 	
+			  	
+			  		if(y->PASSTYPE==1)
+			  		{
+						if(x->LENTRY!=NULL)
+						 { 
+						   res = *(x->LENTRY->VALUE);
+					  	   /*--------------For Code Generation-----------------------*/
+						   FILE *fp;
+						   fp = fopen("sim.asm","a");
+						   fprintf(fp,"MOV R%d,BP\n",regcount);
+						   regcount++;
+						   fprintf(fp,"MOV R%d,%d\n",regcount, x->LENTRY->BINDING);
+						   regcount++;
+						   fprintf(fp,"ADD R%d,R%d\n",regcount-1, regcount-2);		
+						   fprintf(fp,"POP R%d\n",regcount-2);		   
+						   fprintf(fp,"MOV [R%d],R%d\n", regcount-1, regcount-2);
+						   regcount=regcount-2;
+						   fclose(fp);
+						   /*--------------------------------------------------------*/								
+						  }
+						else
+						 {
+						   res = *(x->GENTRY->VALUE);
+					  	   /*--------------For Code Generation-----------------------*/
+						   FILE *fp;
+						   fp = fopen("sim.asm","a");
+						   fprintf(fp,"POP R%d\n",regcount);
+						   regcount++;	
+						   fprintf(fp,"MOV [%d],R%d\n", x->GENTRY->BINDING,regcount-1);
+						   regcount--;
+						   fclose(fp);
+						   /*--------------------------------------------------------*/		
+						 }
+			  		}
+			  		else
+			  		{
+				  		fp = fopen("sim.asm","a");
+				  		fprintf(fp,"POP R%d\n",regcount);
+				  		fclose(fp);
+
+			  		}
+			  		x=x->P3;
+				  	y=y->ARGNEXT;
+
+			}		
+			regcount = regno;			
+			fp = fopen("sim.asm","a");
+			while(regcount>=0)
+			{
+	  		fprintf(fp,"POP R%d \n ",regcount);
+	  		regcount--;					
+			}
+			regcount = regno + 2;			
+			fclose(fp);
+			/*--------------------------------------------------------*/
+	  	 	
+	  	 }
 	  	else if(t->NODETYPE=='c')
 	  	 {
 	  	 	res = t->VALUE;
@@ -1293,6 +1459,7 @@ int traverse(struct node* t)
 			{
 			 fprintf(fp,"POP R%d\n",regcount);
 			}
+			fprintf(fp,"POP BP\n");
 			fprintf(fp,"RET\n");
 			fclose(fp);
 			/*--------------------------------------------------------*/
