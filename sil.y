@@ -738,11 +738,15 @@ int argDefCheck(struct ArgStruct* arg1, struct ArgStruct* arg2)
 int argInstall(struct ArgStruct* head)
 {
 	struct ArgStruct* i = head;
+	memcount=-1;
+	/*memcount starts at -3 for arguments, as -1: Return address and -2 Return value*/
 	while(i!=NULL)
 	{
+		memcount = memcount - 2;
 		Linstall(i->ARGNAME,i->ARGTYPE);
 		i=i->ARGNEXT;
 	}
+	memcount=1;
 }
 
 void Linstall(char* NAME, int TYPE)
@@ -1206,7 +1210,7 @@ int traverse(struct node* t)
 				   regcount++;
 				   fprintf(fp,"ADD R%d,R%d\n",regcount-2, regcount-1);
 				   regcount--;					   
-				   fprintf(fp,"MOV R%d,[R%d]\n", regcount, t->LENTRY->BINDING);
+				   fprintf(fp,"MOV R%d,[R%d]\n", regcount, regcount-1);
 				   regcount++;
 				   fclose(fp);
 				   /*--------------------------------------------------------*/								
