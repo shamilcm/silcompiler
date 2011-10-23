@@ -208,7 +208,10 @@ GId:		ID				{
 							headArg=NULL;
 						}
 		;
-Arglist:	Arglist ';' Arg			{
+Arglist:					{
+						}
+		|
+		Arglist ';' Arg			{
 							 
 						}
 		|
@@ -216,7 +219,10 @@ Arglist:	Arglist ';' Arg			{
 									
 						}
 		;
-FArgdef:	FArglist			{
+FArgdef:					{
+						}
+		|	
+		FArglist			{
 							argInstall(headArg);
 						}
 		;
@@ -277,8 +283,7 @@ FDef:		RType	ID '(' FArgdef ')' Fblock	{
 							 lbcount++;
 							 fprintf(fp,"PUSH BP\n");
 							 fprintf(fp,"MOV BP,SP\n");
-							 fprintf(fp,"MOV R%d,%d\n",regcount,memcount-1
-							 );
+							 fprintf(fp,"MOV R%d,%d\n",regcount,memcount-1);
 							 regcount++;
 							 fprintf(fp,"ADD SP,R%d\n",regcount-1);
 							 regcount--;
@@ -296,7 +301,13 @@ RType:		INT					{    Rtypeval=INTEGER; }
 		;	
 Mainblock:	INT MAIN '('')'  Fblock 	{  	FILE *fp;
 							fp = fopen("sim.asm","a");
-							fprintf(fp,"main: ");
+							fprintf(fp,"main: \n");
+							fprintf(fp,"PUSH BP\n");
+							fprintf(fp,"MOV BP,SP\n");
+							fprintf(fp,"MOV R%d,%d\n",regcount,memcount-1);
+							regcount++;
+							fprintf(fp,"ADD SP,R%d\n",regcount-1);
+							regcount--;
 							fclose(fp);
 							traverse(Thead); 
 							memcount=1;
@@ -534,7 +545,8 @@ expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 						  	yyerror("Type Mismatch for Boolean Operator");
 						  
 						}
-		|					
+
+		|				
 		ID				{
 						  $$ = $1;
 						  struct Lsymbol* temp = Llookup($$->NAME);
