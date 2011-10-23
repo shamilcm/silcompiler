@@ -124,7 +124,7 @@ void makeArglist(struct ArgStruct* head, struct ArgStruct* arg);
 void printArg(struct ArgStruct* head);
 int fnDefCheck(int type, char* name, struct ArgStruct* arg);
 int argDefCheck(struct ArgStruct* arg1, struct ArgStruct* arg2);
-
+int argInstall(struct ArgStruct* head);
 
 struct node* Thead;
 
@@ -161,11 +161,12 @@ struct node* Thead;
   
  
 %%
-pgm:		GDefblock FDefblock Mainblock    	{ 
+pgm:		GDefblock FDefblock Mainblock    { 
 						return(0);
 						}
 		|
 		Mainblock			{  
+						
 						return(0);
 						}
 		;
@@ -175,7 +176,10 @@ GDefblock:	DECL GDeflist ENDDECL		{
 							 fp = fopen("sim.asm","a");
 							 fprintf(fp,"MOV SP,%d\n",memcount);
 							 fclose(fp);						
-							 memcount = 1;		
+							 memcount = 1;	
+							fp=fopen("sim.asm","a");
+							fprintf(fp,"JMP main\n");
+							fclose(fp);		
 						}	
 		;
 
@@ -205,6 +209,18 @@ GId:		ID				{
 						}
 		;
 Arglist:	Arglist ';' Arg			{
+							 
+						}
+		|
+		Arg				{
+									
+						}
+		;
+FArgdef:	FArglist			{
+							argInstall(headArg);
+						}
+		;
+FArglist:	FArglist ';' Arg		{
 							 
 						}
 		|
@@ -251,7 +267,7 @@ FDefblock:
 		FDefblock FDef
 		;
 
-FDef:		RType	ID '(' Arglist ')' Fblock	{
+FDef:		RType	ID '(' FArgdef ')' Fblock	{
 							 //struct Gsymbol* x = Glookup($2->NAME);
 							 //if(x!=NULL) printf("Check");
 							 fnDefCheck(Rtypeval, $2->NAME, headArg);
@@ -259,8 +275,14 @@ FDef:		RType	ID '(' Arglist ')' Fblock	{
 							 fp = fopen("sim.asm","a");
 							 fprintf(fp,"fn%d:  //Function Name: %s\n", lbcount, $2->NAME);
 							 lbcount++;
+							 fprintf(fp,"PUSH BP\n");
+							 fprintf(fp,"MOV BP,SP\n");
+							 fprintf(fp,"MOV R%d,%d\n",regcount,memcount);
+							 regcount++;
+							 fprintf(fp,"ADD SP,R%d\n",regcount-1);
+							 regcount--;
 							 fclose(fp);
-							 headArg = NULL;
+							 headArg=NULL;
 							 traverse(Thead); 
 							 memcount=1;
 							 Lhead = NULL;
@@ -276,6 +298,7 @@ Mainblock:	INT MAIN '('')'  Fblock 	{  	FILE *fp;
 							fprintf(fp,"main: ");
 							fclose(fp);
 							traverse(Thead); 
+							memcount=1;
 							Lhead = NULL;
 							Thead=NULL;
 						}
@@ -324,7 +347,7 @@ Stmtlist:						{     $$ = NULL;    }
 								$$ = makeTree(temp, $1, NULL, NULL);
 							 }
 		|
-		Stmtlist ';' stmt 			      {  	struct node* temp = malloc(sizeof(struct node));
+		Stmtlist ';' stmt 			{  	struct node* temp = malloc(sizeof(struct node));
 								temp = makeNode1(VOID, 's',NULL, 0);
 								$$ = makeTree(temp, $1, $3, NULL);
 							}
@@ -554,7 +577,6 @@ int main(void)
 	fprintf(fp,"START\n");
 	fprintf(fp,"MOV SP, 0\n");
 	fprintf(fp,"MOV BP, 0\n");
-	fprintf(fp,"JMP main\n");
 	fclose(fp);
 	yyparse();
 	fp=fopen("sim.asm","a");
@@ -640,7 +662,6 @@ void Ginstall(char* NAME, int TYPE, int SIZE, struct ArgStruct* ARGLIST)
 	   {	   res->BINDING = memcount;
 		   memcount = memcount+SIZE;
 	   }
-	   
 	   /*---------------------------------------------*/
 	   res->NEXT = Ghead;
 	   Ghead = res;
@@ -690,9 +711,10 @@ int argDefCheck(struct ArgStruct* arg1, struct ArgStruct* arg2)
 			{
 			return 0;
 			} 
-			else
+			//Linstall(j->ARGNAME,j->ARGTYPE);
 			i=i->ARGNEXT;
 			j=j->ARGNEXT;
+			
 		}
 	}
 	if(j==NULL) 
@@ -703,6 +725,16 @@ int argDefCheck(struct ArgStruct* arg1, struct ArgStruct* arg2)
 	{	
 	 	return 0;
 		
+	}
+}
+
+int argInstall(struct ArgStruct* head)
+{
+	struct ArgStruct* i = head;
+	while(i!=NULL)
+	{
+		Linstall(i->ARGNAME,i->ARGTYPE);
+		i=i->ARGNEXT;
 	}
 }
 
