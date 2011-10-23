@@ -146,15 +146,15 @@ struct node* Thead;
 
 }
 
-%token <n> NUM BNUM ID WRITE READ  RELOP AND OR NOT
-%token IF ENDIF WHILE DO ENDWHILE BEG END BOOL INT DECL ENDDECL MAIN THEN ELSE RETURN
+%token <n> NUM BNUM ID WRITE READ  RELOP AND OR NOT RETURN
+%token IF ENDIF WHILE DO ENDWHILE BEG END BOOL INT DECL ENDDECL MAIN THEN ELSE 
 %right NOT
 %left AND OR
 %left RELOP
 %left '-' '+'
 %left '*' '/' '%'
 %right NEG   
-%type <n>  expr  stmt Stmtlist
+%type <n>  expr  stmt Stmtlist Returnstmt
 %type <n> '+' '-' '*' '/' '%' '='
 
 
@@ -174,7 +174,7 @@ pgm:		GDefblock FDefblock Mainblock    {
 GDefblock:	DECL GDeflist ENDDECL		{
 							 FILE *fp;
 							 fp = fopen("sim.asm","a");
-							 fprintf(fp,"MOV SP,%d\n",memcount);
+							 fprintf(fp,"MOV SP,%d\n",memcount-1);
 							 fclose(fp);						
 							 memcount = 1;	
 							fp=fopen("sim.asm","a");
@@ -277,7 +277,8 @@ FDef:		RType	ID '(' FArgdef ')' Fblock	{
 							 lbcount++;
 							 fprintf(fp,"PUSH BP\n");
 							 fprintf(fp,"MOV BP,SP\n");
-							 fprintf(fp,"MOV R%d,%d\n",regcount,memcount);
+							 fprintf(fp,"MOV R%d,%d\n",regcount,memcount-1
+							 );
 							 regcount++;
 							 fprintf(fp,"ADD SP,R%d\n",regcount-1);
 							 regcount--;
@@ -335,11 +336,17 @@ LId:		ID					{   Linstall($1->NAME, typeval);
 							}		
 		;
 
-Stmtblock:	BEG Stmtlist ';' END			{ }
+Stmtblock:	BEG  Returnstmt ';' END			{ }
 		|
-		BEG END					{ }		
+		BEG END						{ }
 		;
-
+Returnstmt:	Stmtlist ';' RETURN expr 		{
+							struct node* temp = makeNode1(VOID,'x',NULL,0);
+							$3 = makeTree(temp, NULL, $4,NULL);
+							temp = makeNode1(VOID, 's',NULL, 0);
+							$$ = makeTree(temp, $1, $3, NULL);
+							}
+		;
 Stmtlist:						{     $$ = NULL;    }
 		|	
 		stmt					{   	struct node* temp = malloc(sizeof(struct node));
@@ -451,7 +458,7 @@ stmt:		ID '=' expr				{
 							}
 		|						
 		RETURN					{
-							$$ = makeNode1(VOID,'x',NULL,0);
+
 							}	
 		;
 
@@ -957,148 +964,67 @@ int traverse(struct node* t)
 	  	  {
 	  	   	 
 	  	   	   struct Lsymbol* check = Llookup(t->P1->NAME);
-	  		   if(check==NULL)				
+	  		   if(check==NULL)					
 	  		    {
-	  		      struct Gsymbol* gcheck = Glookup(t->P1->NAME);
-	  		      if(gcheck==NULL)					
-	  		      	yyerror("Undefined Variable in read statement");
-			      else
-			       { 
-			        if(t->P2 == NULL)					
-			          {
-			              if(gcheck->TYPE==BOOLEAN)	 				
-			             	{ char bval[6];
-			             	  //scanf("%s", bval );
-			             	/*  if(strcmp(bval,"TRUE")) 					
-			             	  {	
-						*(gcheck->VALUE) = 1;            	  
-			             	  }
-			             	  else if(strcmp(bval,"FALSE")) 				
-			             	  {	
-						*(gcheck->VALUE) = 0;
-			             	  }
-			             	  else
-			             	  {      yyerror("Unrecognized constant");
-			             	  }*/
-					/*--------------For Code Generation-----------------------*/
-					   FILE *fp;
-					   fp = fopen("sim.asm","a");
-					   fprintf(fp,"IN R%d\n",regcount);
-					   regcount++;
-					   fprintf(fp,"MOV [%d],R%d\n",gcheck->BINDING,regcount-1);
-					   regcount--;
-					   fclose(fp);
-					/*--------------------------------------------------------*/
-			             	}
-			             else							
-			              {	
-			                //scanf("%d",gcheck->VALUE);
-					/*--------------For Code Generation-----------------------*/
-					   FILE *fp;
-					   fp = fopen("sim.asm","a");
-					   fprintf(fp,"IN R%d\n",regcount);
-					   regcount++;
-					   fprintf(fp,"MOV [%d],R%d\n",gcheck->BINDING,regcount-1);
-					   regcount--;
-					   fclose(fp);
-					/*--------------------------------------------------------*/		
-			              
-			              }
-			           }
-			        else							
-			         {
-			           int pos = traverse(t->P2);
-			           if(pos >= (gcheck->SIZE) || pos<0 )
-			           	yyerror("Exceeding size of array");
-			           else
-			             {
-			             	if(gcheck->TYPE==BOOLEAN) 
-			             	{ char bval[6];
-			             	  //scanf("%s", bval );
-			             	  /*if(strcmp(bval,"TRUE")==0) 
-			             	  {	*(gcheck->VALUE+pos) = 1;
-			             	  }
-			             	  else if(strcmp(bval,"FALSE")==0) 
-			             	   {	*(gcheck->VALUE+pos) = 0;
-			             	   }
-			             	  else
-			             	   {  yyerror("Unrecognized constant");
-				            }	   */
-					   /*--------------For Code Generation-----------------------*/
-					   FILE *fp;
-					   fp = fopen("sim.asm","a");
-					   fprintf(fp,"MOV R%d,%d\n", regcount, gcheck->BINDING);
-					   regcount++;
-					   fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
-					   regcount--;
-					   fprintf(fp,"IN R%d\n", regcount);
-					   regcount++;
-					   fprintf(fp,"MOV [R%d],R%d\n", regcount-2, regcount-1);
-					   regcount=regcount-2;
-					   fclose(fp);
-					   /*--------------------------------------------------------*/	
-			             	}
-				        else
-				     	{
-				     	   
-				     	   //scanf("%d",(gcheck->VALUE+pos));
-					    /*--------------For Code Generation-----------------------*/
-					   FILE *fp;
-					   fp = fopen("sim.asm","a");
-					   fprintf(fp,"MOV R%d,%d\n", regcount, gcheck->BINDING);
-					   regcount++;
-					   fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
-					   regcount--;
-					   fprintf(fp,"IN R%d\n", regcount);
-					   regcount++;
-					   fprintf(fp,"MOV [R%d],R%d\n", regcount-2, regcount-1);
-					   regcount=regcount-2;
-					   fclose(fp);
-					   /*--------------------------------------------------------*/	
-				     	   			               
-			                }
-			             }
-			          }
-			       } 
-			    }
+		  		      struct Gsymbol* gcheck = Glookup(t->P1->NAME);
+		  		      if(gcheck==NULL)						
+		  		      	yyerror("Undefined Variable in read statement");
+				      else				
+				       { 
+						if(t->P2 == NULL)						
+						  {
+							/*--------------For Code Generation-----------------------*/
+							   FILE *fp;
+							   fp = fopen("sim.asm","a");
+							   fprintf(fp,"IN R%d\n",regcount);
+							   regcount++;
+							   fprintf(fp,"MOV [%d],R%d\n",gcheck->BINDING,regcount-1);
+							   regcount--;
+							   fclose(fp);
+							/*--------------------------------------------------------*/
+						}
+						else							
+						 {
+							   int pos = traverse(t->P2);
+							   if(pos >= (gcheck->SIZE) || pos<0 )
+							   	yyerror("Exceeding size of array");
+							   else
+							    {
+
+								    /*--------------For Code Generation-----------------------*/
+								   FILE *fp;
+								   fp = fopen("sim.asm","a");
+								   fprintf(fp,"MOV R%d,%d\n", regcount, gcheck->BINDING);
+								   regcount++;
+								   fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
+								   regcount--;
+								   fprintf(fp,"IN R%d\n", regcount);
+								   regcount++;
+								   fprintf(fp,"MOV [R%d],R%d\n", regcount-2, regcount-1);
+								   regcount=regcount-2;
+								   fclose(fp);
+								   /*--------------------------------------------------------*/	
+	
+							    }
+					  	}
+				       }
+			   } 
 			   else
-			   {     if(check->TYPE==BOOLEAN) 
-			             	{ char bval[6];
-			             	  //scanf("%s", bval );
-			             	 /* if(strcmp(bval,"TRUE")==0) 
-			             	  {	*(check->VALUE) = 1;			             	  
-			             	   }
-			             	  else if(strcmp(bval,"FALSE")==0)
-			             	  {	*(check->VALUE) = 0;
- 
-			             	  }
-			             	  else
-			             	   {     yyerror("Unrecognized constant");
-					    }*/
-					/*--------------For Code Generation-----------------------*/
+			   {          /*--------------For Code Generation-----------------------*/
 					   FILE *fp;
 					   fp = fopen("sim.asm","a");
 					   fprintf(fp,"IN R%d\n",regcount);
 					   regcount++;
-					   fprintf(fp,"MOV [%d],R%d\n",check->BINDING,regcount-1);
-					   regcount--;
+					   fprintf(fp,"MOV R%d,BP\n",regcount);
+					   regcount++;
+					   fprintf(fp,"MOV R%d,%d\n",regcount, check->BINDING);
+					   regcount++;
+					   fprintf(fp,"ADD R%d,R%d\n",regcount-2, regcount-1);
+					   regcount--;					   
+					   fprintf(fp,"MOV [R%d],R%d\n",regcount-1,regcount-2);
+					   regcount=regcount-2;
 					   fclose(fp);
 					/*--------------------------------------------------------*/	
-			             	}
-			      	else
-				 {
-				   //scanf("%d",(check->VALUE));
-				/*--------------For Code Generation-----------------------*/
-				   FILE *fp;
-				   fp = fopen("sim.asm","a");
-				   fprintf(fp,"IN R%d\n",regcount);
-				   regcount++;
-				   fprintf(fp,"MOV [%d],R%d\n",check->BINDING,regcount-1);
-				   regcount--;
-				   fclose(fp);
-				/*--------------------------------------------------------*/	
-				    
-			         }
 			   }
 	  	  }	
 	  	else if(t->NODETYPE=='=')
@@ -1106,57 +1032,63 @@ int traverse(struct node* t)
 	  	 	
 	  	 	struct Lsymbol *check = Llookup(t->P1->NAME);
 	  	 	if(check==NULL) 	  		
-	  	 	    {
-	  		      struct Gsymbol* gcheck = Glookup(t->P1->NAME);
-	  		      if(gcheck==NULL)
-	  		      	yyerror("Undefined Variable in assignment statement");
-			      else
-			        { 
-			        if(t->P2 == NULL)
-			         {  *(gcheck->VALUE) = traverse(t->P3);
-				    /*--------------For Code Generation-----------------------*/
-				   FILE *fp;
-				   fp = fopen("sim.asm","a");
-				   fprintf(fp,"MOV [%d],R%d\n", gcheck->BINDING, regcount-1);
-				   regcount--;
-				   fclose(fp);
-				   /*--------------------------------------------------------*/			
-			         }
-			        else
-			         {
-			           int pos = traverse(t->P2);
-			           if(pos >= (gcheck->SIZE) || pos<0 )
-			           	yyerror("Exceeding size of array");
-			           else
-			           {	
-					    /*--------------For Code Generation-----------------------*/
-					   FILE *fp;
-					   fp = fopen("sim.asm","a");
-					   fprintf(fp,"MOV R%d,%d\n", regcount, gcheck->BINDING);
-					   regcount++;
-					   fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
-					   regcount--;
-					   fclose(fp);
-					   /*---------------------------------------------------------*/
-					   *(gcheck->VALUE + pos) = traverse(t->P3);
-					   /*---------------------------------------------------------*/
-					   fp = fopen("sim.asm","a");
-					   fprintf(fp,"MOV [R%d],R%d\n", regcount-2, regcount-1);
-					   regcount=regcount-2;
-					   fclose(fp);
-					   /*--------------------------------------------------------*/	
-					   }
-			          }   
-			         }
-			      }
+	  	 	{
+		  		      struct Gsymbol* gcheck = Glookup(t->P1->NAME);
+		  		      if(gcheck==NULL)
+		  		      	yyerror("Undefined Variable in assignment statement");
+				      else
+					{ 
+						if(t->P2 == NULL)
+						 {  *(gcheck->VALUE) = traverse(t->P3);
+						    /*--------------For Code Generation-----------------------*/
+						   FILE *fp;
+						   fp = fopen("sim.asm","a");
+						   fprintf(fp,"MOV [%d],R%d\n", gcheck->BINDING, regcount-1);
+						   regcount--;
+						   fclose(fp);
+						   /*--------------------------------------------------------*/			
+						 }
+						else
+						 {
+							   int pos = traverse(t->P2);
+							   if(pos >= (gcheck->SIZE) || pos<0 )
+							   	yyerror("Exceeding size of array");
+							   else
+							   {	
+								    /*--------------For Code Generation-----------------------*/
+								   FILE *fp;
+								   fp = fopen("sim.asm","a");
+								   fprintf(fp,"MOV R%d,%d\n", regcount, gcheck->BINDING);
+								   regcount++;
+								   fprintf(fp,"ADD R%d,R%d\n", regcount-2, regcount-1);
+								   regcount--;
+								   fclose(fp);
+								   /*---------------------------------------------------------*/
+								   *(gcheck->VALUE + pos) = traverse(t->P3);
+								   /*---------------------------------------------------------*/
+								   fp = fopen("sim.asm","a");
+								   fprintf(fp,"MOV [R%d],R%d\n", regcount-2, regcount-1);
+								   regcount=regcount-2;
+								   fclose(fp);
+								   /*--------------------------------------------------------*/	
+							   }
+						  }   
+					}
+			}
 	  	 	else
 	  	 	 {
 			    *(check->VALUE) = traverse(t->P3);
 			   /*--------------For Code Generation-----------------------*/
 			   FILE *fp;
 			   fp = fopen("sim.asm","a");
-			   fprintf(fp,"MOV [%d],R%d\n", check->BINDING, regcount-1);
-			   regcount--;
+			   fprintf(fp,"MOV R%d,BP\n",regcount);
+			   regcount++;
+			   fprintf(fp,"MOV R%d,%d\n",regcount, check->BINDING);
+			   regcount++;
+			   fprintf(fp,"ADD R%d,R%d\n",regcount-2, regcount-1);
+			   regcount--;					   
+			   fprintf(fp,"MOV [R%d],R%d\n",regcount-1,regcount-2);
+			   regcount=regcount-2;
 			   fclose(fp);
 			   /*--------------------------------------------------------*/	
 	  	 	  
@@ -1268,7 +1200,13 @@ int traverse(struct node* t)
 			  	   /*--------------For Code Generation-----------------------*/
 				   FILE *fp;
 				   fp = fopen("sim.asm","a");
-				   fprintf(fp,"MOV R%d,[%d]\n", regcount, t->LENTRY->BINDING);
+				   fprintf(fp,"MOV R%d,BP\n",regcount);
+				   regcount++;
+				   fprintf(fp,"MOV R%d,%d\n",regcount, t->LENTRY->BINDING);
+				   regcount++;
+				   fprintf(fp,"ADD R%d,R%d\n",regcount-2, regcount-1);
+				   regcount--;					   
+				   fprintf(fp,"MOV R%d,[R%d]\n", regcount, t->LENTRY->BINDING);
 				   regcount++;
 				   fclose(fp);
 				   /*--------------------------------------------------------*/								
