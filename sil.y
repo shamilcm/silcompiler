@@ -1208,10 +1208,9 @@ int traverse(struct node* t)
 				   regcount++;
 				   fprintf(fp,"MOV R%d,%d\n",regcount, t->LENTRY->BINDING);
 				   regcount++;
-				   fprintf(fp,"ADD R%d,R%d\n",regcount-2, regcount-1);
-				   regcount--;					   
-				   fprintf(fp,"MOV R%d,[R%d]\n", regcount, regcount-1);
-				   regcount++;
+				   fprintf(fp,"ADD R%d,R%d\n",regcount-1, regcount-2);			   
+				   fprintf(fp,"MOV R%d,[R%d]\n", regcount-2, regcount-1);
+				   regcount--;
 				   fclose(fp);
 				   /*--------------------------------------------------------*/								
 				  }
@@ -1262,9 +1261,26 @@ int traverse(struct node* t)
 	  	 }
 		else if(t->NODETYPE=='x')
 		{
+			if(t->P2!=NULL)
+			{
+			traverse(t->P2);
+			}
 			/*--------------For Code Generation-----------------------*/
 	  	 	FILE *fp;
 			fp = fopen("sim.asm","a");
+			fprintf(fp,"MOV R%d,BP\n",regcount);
+			regcount++;
+			fprintf(fp,"MOV R%d,-2\n",regcount);
+			regcount++;
+			fprintf(fp,"ADD R%d,R%d\n",regcount-2,regcount-1);
+			regcount--;
+			fprintf(fp,"MOV [R%d],R%d\n",regcount-1,regcount-2);
+			regcount = regcount-2;
+			int i;
+			for(i=1;i<=memcount-1;i++)
+			{
+			 fprintf(fp,"POP R%d\n",regcount);
+			}
 			fprintf(fp,"RET\n");
 			fclose(fp);
 			/*--------------------------------------------------------*/
