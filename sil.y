@@ -155,7 +155,7 @@ struct node* Thead;
 %left '-' '+'
 %left '*' '/' '%'
 %right NEG   
-%type <n>  expr  stmt Stmtlist Returnstmt exprlist
+%type <n>  expr  stmt Stmtlist exprlist
 %type <n> '+' '-' '*' '/' '%' '='
 
 
@@ -282,12 +282,10 @@ FDef:		RType	ID '(' FArgdef ')' Fblock	{
 							 fnDefCheck(Rtypeval, $2->NAME, headArg);
 							 FILE *fp;
 							 fp = fopen("sim.asm","a");
-							 fprintf(fp,"fn%d:  //Function Name: %s\n", lbcount, $2->NAME);
+							 fprintf(fp,"fn%d:\n", lbcount);
 							 lbcount++;
 							 fprintf(fp,"PUSH BP\n");
 							 fprintf(fp,"MOV BP,SP\n");
-							 fprintf(fp,"MOV R%d,%d\n",regcount,memcount-1);
-							 regcount++;
 							 fprintf(fp,"MOV R%d,%d\n",regcount,memcount-1);
 							 regcount++;
 							 fprintf(fp,"MOV R%d,SP\n",regcount);
@@ -315,7 +313,11 @@ Mainblock:	INT MAIN '('')'  Fblock 	{  	FILE *fp;
 							fprintf(fp,"MOV BP,SP\n");
 							fprintf(fp,"MOV R%d,%d\n",regcount,memcount-1);
 							regcount++;
-							fprintf(fp,"ADD SP,R%d\n",regcount-1);
+							fprintf(fp,"MOV R%d,SP\n",regcount);
+							regcount++;
+							fprintf(fp,"ADD R%d,R%d\n",regcount-2,regcount-1);
+							regcount--;
+							fprintf(fp,"MOV SP,R%d\n",regcount-1);
 							regcount--;
 							fclose(fp);
 							traverse(Thead); 
@@ -356,16 +358,9 @@ LId:		ID					{   Linstall($1->NAME, typeval);
 							}		
 		;
 
-Stmtblock:	BEG  Returnstmt ';' END			{ }
+Stmtblock:	BEG  Stmtlist ';' END			{ }
 		|
 		BEG END						{ }
-		;
-Returnstmt:	Stmtlist ';' RETURN expr 		{
-							struct node* temp = makeNode1(VOID,'x',NULL,0);
-							$3 = makeTree(temp, NULL, $4,NULL);
-							temp = makeNode1(VOID, 's',NULL, 0);
-							$$ = makeTree(temp, $1, $3, NULL);
-							}
 		;
 Stmtlist:						{     $$ = NULL;    }
 		|	
@@ -475,8 +470,13 @@ stmt:		ID '=' expr				{
 		WHILE expr DO Stmtlist';' ENDWHILE	{	
 							$$ = makeNode1(VOID, 'w', NULL, 0);
 							$$ = makeTree($$, $2, $4, NULL);
-							}							
-		;
+							}	
+		|
+		RETURN expr 				{	
+							struct node* temp = makeNode1(VOID,'x',NULL,0);
+							$$ = makeTree(temp, NULL, $2,NULL);
+							}						
+		;				
 
 expr:		expr '+' expr 			{ if( $1->TYPE == $2->TYPE && $2->TYPE == $3->TYPE )
 						   	$$ = makeTree($2, $1, $3, NULL);
@@ -609,12 +609,11 @@ exprlist:					{
 		|
 		exprlist ',' expr		{
 						$1->P3 = $3;
-						printf("%d %c %d",$3->P1->VALUE,$3->NODETYPE,$3->P2->VALUE);
 						$$=$1;						 				 						
 						}
 		|
 		expr 				{
-						 printf("%d %c %d",$1->P1->VALUE,$1->NODETYPE, $1->P2->VALUE);
+
 						 $$=$1;
 						}
 		;
@@ -1354,13 +1353,13 @@ int traverse(struct node* t)
 			fp = fopen("sim.asm","a");
 			while(regcount>0)
 			{
-	  		fprintf(fp,"PUSH R%d //Pushing Registers\n ",regcount-1);
+	  		fprintf(fp,"PUSH R%d //Pushing Registers\n",regcount-1);
 	  		regcount--;					
 			}
 			fclose(fp);
 			int argnum = pushArg(t->P1,t->GENTRY->ARGLIST);
 	 		fp = fopen("sim.asm","a");
-			fprintf(fp,"CALL fn%d //Function Name %s\n", t->GENTRY->BINDING, t->NAME);
+			fprintf(fp,"CALL fn%d\n", t->GENTRY->BINDING);
 			fprintf(fp,"POP R%d\n", regno+1);
 			fclose(fp);
 			regcount=regno+2;
@@ -1417,7 +1416,7 @@ int traverse(struct node* t)
 			fp = fopen("sim.asm","a");
 			while(regcount>=0)
 			{
-	  		fprintf(fp,"POP R%d \n ",regcount);
+	  		fprintf(fp,"POP R%d \n",regcount);
 	  		regcount--;					
 			}
 			regcount = regno + 2;			
