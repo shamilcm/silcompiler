@@ -30,6 +30,7 @@ int ifcount = 0;
 int whilecount = 0;
 int lbcount = 0;
 
+
 struct istack
 {
  int value;
@@ -117,6 +118,7 @@ int typeval;   //For getting type of variable
 int Atypeval;	//For getting type of arguments
 int Rtypeval;	// For getting return type
 
+int mainflag=0; 	//TO check if its main function
 struct ArgStruct* headArg = NULL;
 struct ArgStruct* newArg;
 
@@ -175,12 +177,12 @@ pgm:		GDefblock FDefblock Mainblock    {
 GDefblock:	DECL GDeflist ENDDECL		{
 							 FILE *fp;
 							 fp = fopen("sim.asm","a");
-							 fprintf(fp,"MOV SP,%d\n",memcount-1);
-							 fclose(fp);						
+							  int i=0;
+							  for(i=0;i<memcount;i++)
+							  	fprintf(fp,"PUSH R%d\n",regcount);
+							fclose(fp);						
 							 memcount = 1;	
 							fp=fopen("sim.asm","a");
-							fprintf(fp,"PUSH R0\n");
-							fprintf(fp,"PUSH R0\n");
 							fprintf(fp,"JMP main\n");
 							fclose(fp);		
 						}	
@@ -286,14 +288,9 @@ FDef:		RType	ID '(' FArgdef ')' Fblock	{
 							 lbcount++;
 							 fprintf(fp,"PUSH BP\n");
 							 fprintf(fp,"MOV BP,SP\n");
-							 fprintf(fp,"MOV R%d,%d\n",regcount,memcount-1);
-							 regcount++;
-							 fprintf(fp,"MOV R%d,SP\n",regcount);
-							 regcount++;
-							 fprintf(fp,"ADD R%d,R%d\n",regcount-2,regcount-1);
-							 regcount--;
-							 fprintf(fp,"MOV SP,R%d\n",regcount-1);
-							 regcount--;
+							 int i=1;
+							 for(i=1;i<memcount;i++)
+							  	fprintf(fp,"PUSH R%d\n",regcount);
 							 fclose(fp);
 							 headArg=NULL;
 							 traverse(Thead); 
@@ -311,15 +308,11 @@ Mainblock:	INT MAIN '('')'  Fblock 	{  	FILE *fp;
 							fprintf(fp,"main: \n");
 							fprintf(fp,"PUSH BP\n");
 							fprintf(fp,"MOV BP,SP\n");
-							fprintf(fp,"MOV R%d,%d\n",regcount,memcount-1);
-							regcount++;
-							fprintf(fp,"MOV R%d,SP\n",regcount);
-							regcount++;
-							fprintf(fp,"ADD R%d,R%d\n",regcount-2,regcount-1);
-							regcount--;
-							fprintf(fp,"MOV SP,R%d\n",regcount-1);
-							regcount--;
+							int i=1;
+							for(i=1;i<memcount;i++)
+							  	fprintf(fp,"PUSH R%d\n",regcount);
 							fclose(fp);
+							mainflag=1;
 							traverse(Thead); 
 							memcount=1;
 							Lhead = NULL;
@@ -804,7 +797,6 @@ int pushArg(struct node *x, struct ArgStruct *args)
 		}
 		else
 		{
-		 	return 0;
 		 	yyerror("Arguments Mismatch");
 		}
 	}
@@ -812,7 +804,6 @@ int pushArg(struct node *x, struct ArgStruct *args)
 	{
 		if(args==NULL)
 		{
-			return 0;
 			yyerror("Arguments Mismatch");
 		}
 		else
@@ -821,9 +812,8 @@ int pushArg(struct node *x, struct ArgStruct *args)
 		  	{
 				if(args->PASSTYPE==1)
 				{
-				  if(x->P3->NODETYPE!='v')
+				  if(x->NODETYPE!='v')
 				  {
-				  	return 0;
 				  	yyerror("Pass By Reference Error");
 				  }
 				}
@@ -1328,7 +1318,7 @@ int traverse(struct node* t)
 			  int pos = traverse(t->P1);
 			  if(pos < t->GENTRY->SIZE || pos >= 0)
 			   {
-			      res = *(t->GENTRY->VALUE + pos);
+			      //res = *(t->GENTRY->VALUE + pos);
 			      /*--------------For Code Generation-----------------------*/
 				   FILE *fp;
 				   fp = fopen("sim.asm","a");
@@ -1359,6 +1349,7 @@ int traverse(struct node* t)
 			fclose(fp);
 			int argnum = pushArg(t->P1,t->GENTRY->ARGLIST);
 	 		fp = fopen("sim.asm","a");
+			fprintf(fp,"PUSH R%d\n", regcount);
 			fprintf(fp,"CALL fn%d\n", t->GENTRY->BINDING);
 			fprintf(fp,"POP R%d\n", regno+1);
 			fclose(fp);
@@ -1442,6 +1433,9 @@ int traverse(struct node* t)
 			{
 			traverse(t->P2);
 			}
+			
+			if(mainflag!=1)
+			{
 			/*--------------For Code Generation-----------------------*/
 	  	 	FILE *fp;
 			fp = fopen("sim.asm","a");
@@ -1462,7 +1456,7 @@ int traverse(struct node* t)
 			fprintf(fp,"RET\n");
 			fclose(fp);
 			/*--------------------------------------------------------*/
-	  	 	
+	  	 	}
 	  	 }
 	  	else if(t->NODETYPE=='s')
 	  	 {
