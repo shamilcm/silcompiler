@@ -1,5 +1,4 @@
-input
-input1
+input*
 lex.yy.c
 y.tab.c
 y.tab.h
