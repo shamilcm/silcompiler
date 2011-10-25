@@ -88,7 +88,7 @@ struct ArgStruct{
 struct Gsymbol {
 	char* NAME; 		// Name of the Identifier
 	int TYPE; 		// TYPE can be INTEGER or BOOLEAN
-	int SIZE; 		// Size field for arrays
+	int SIZE; 		// Size field for arrays, 0 functions
 	int *VALUE; 		// Address of the Identifier in Memory
 	int BINDING;		// Position in the memory for Code Generation
 	struct ArgStruct* ARGLIST;	// Argument List for functions, AgStruct - name and type of each argument
